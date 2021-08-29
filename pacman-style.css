@@ -1,6 +1,3 @@
-.pacman {
-    fill: yellow;
-}
 .pacman-eye {
     fill: black;
 }
@@ -12,4 +9,21 @@
 }
 #game-screen {
     background-color: lightgrey;
+}
+.pacman {
+    stroke: yellow;
+    stroke-width: 10;
+    fill: none;
+    animation: chomp 0.15s linear infinite alternate;
+}
+
+@keyframes chomp {
+    from {
+        stroke-dasharray: 157,100;
+        stroke-dashoffset: 0;
+    }
+    to {
+        stroke-dasharray: 126,100;
+        stroke-dashoffset: -15;
+    }
 }

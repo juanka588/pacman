@@ -8,7 +8,7 @@ let directions = [
     {x: -1, y: 0} // 4 left
 ];
 let currentDirection = 0;
-let size = 10;
+let size = 50;
 
 let gameEngine;
 
@@ -32,7 +32,6 @@ function setup() {
 }
 
 function draw() {
-    //background(220);
     let direction = directions[currentDirection];
     gameEngine.gameLoop(direction);
     setTimeout(() => {
@@ -60,8 +59,6 @@ class PacmanAdapter {
     constructor(pacman, size) {
         this.pacman = pacman;
         this.size = size;
-        this.closingAngle = 0.8;
-        this.animationRate = 0.05;
         this.rotation = 0;
         this.geometryRef = undefined;
     }
@@ -77,7 +74,7 @@ class PacmanAdapter {
             this.rotation = 0;
         }
         if (direction.x < 0) { // left
-            this.rotation = -270;
+            this.rotation = 180;
         }
         this.pacman.move(direction, gameMap);
     }
@@ -97,25 +94,9 @@ class PacmanAdapter {
         let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
         let size = this.size;
-        //
-        // this.closingAngle = this.closingAngle + this.animationRate;
-        // if (this.closingAngle >= 1) {
-        //     this.animationRate = -this.animationRate;
-        // }
-        // if (this.closingAngle < 0.8) {
-        //     this.animationRate = -this.animationRate;
-        // }
-        //
         translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
-        let sign = -1;
-        if (this.rotation === -270) {
-            // must mirror
-            sign = 1;
-        }
-        // arc(0, 0, size, size, 0, 2 * PI * this.closingAngle);
         let body = createCircle(0, 0, size / 2, "pacman");
-
-        let eye = createCircle(sign * offset * 0.3, sign * offset * 0.5, size * 0.1, "pacman-eye");
+        let eye = createCircle(offset * 0.3, -offset * 0.5, size * 0.1, "pacman-eye");
 
         group.appendChild(body);
         group.appendChild(eye);
@@ -129,7 +110,6 @@ class PacmanAdapter {
         let xCenter = this.pacman.x * this.size;
         let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
-        let size = this.size;
         translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
     }
 }
@@ -303,7 +283,11 @@ function createLine(x1, y1, x2, y2, className) {
 }
 
 function translateAndRotate(element, x, y, angle) {
-    element.setAttributeNS(null, "transform", `translate(${x},${y}) rotate(${angle})`);
+    if (angle === 180) {
+        element.setAttributeNS(null, "transform", `translate(${x},${y}) scale(-1,1)`);
+    } else {
+        element.setAttributeNS(null, "transform", `translate(${x},${y}) rotate(${angle})`);
+    }
     return element;
 }
 
