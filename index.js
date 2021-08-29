@@ -9,7 +9,7 @@ let directions = [
     {x: -1, y: 0} // 4 left
 ];
 let currentDirection = 0;
-let size = 40;
+let size = 20;
 
 let gameMap = [];
 
@@ -66,15 +66,31 @@ class Pacman {
     constructor(x, y, size) {
         this.x = x;
         this.y = y;
-        this.size = size;
         this.score = 0;
+        this.size = size;
+        this.closingAngle = 0.8;
+        this.animationRate = 0.05;
+        this.rotation = 0;
     }
 
     move(direction, gameMap) {
         let cell = gameMap[this.x][this.y];
+        cell.visited = true;
 
         if (cell.hasWallsInDirection(direction)) {
             return;
+        }
+        if (direction.y < 0) { // up
+            this.rotation = -PI / 2;
+        }
+        if (direction.y > 0) { // down
+            this.rotation = PI / 2;
+        }
+        if (direction.x > 0) { // right
+            this.rotation = 0;
+        }
+        if (direction.x < 0) { // left
+            this.rotation = -3 * PI / 4;
         }
         this.y = this.y + direction.y;
         this.x = this.x + direction.x;
@@ -82,7 +98,6 @@ class Pacman {
             this.score = this.score + cell.pellet.points;
             cell.removePellet();
         }
-        cell.visited = true;
     }
 
     canMove(direction) {
@@ -98,8 +113,33 @@ class Pacman {
     }
 
     draw() {
+        push();
+        let xCenter = this.x * this.size;
+        let yCenter = this.y * this.size;
+        let offset = this.size / 2;
+        let size = this.size;
+
+        this.closingAngle = this.closingAngle + this.animationRate;
+        if (this.closingAngle >= 1) {
+            this.animationRate = -this.animationRate;
+        }
+        if (this.closingAngle < 0.8) {
+            this.animationRate = -this.animationRate;
+        }
+
+        translate(xCenter + offset, yCenter + offset);
+        let sign = -1;
+        if (this.rotation === (-3 * PI / 4)) {
+            // must mirror
+            sign = 1;
+        }
+        rotate(this.rotation);
         fill(212, 205, 13);
-        ellipse(this.x * this.size + this.size / 2, this.y * this.size + this.size / 2, this.size, this.size);
+        arc(0, 0, size, size, 0, 2 * PI * this.closingAngle);
+
+        fill(0);
+        circle(sign * offset * 0.3, sign * offset * 0.5, size * 0.1);
+        pop();
     }
 }
 
@@ -113,7 +153,11 @@ class Pellet {
 
     draw() {
         fill(255, this.points);
-        ellipse(this.x * this.size + this.size / 2, this.y * this.size + this.size / 2, this.size / 2, this.size / 2);
+        let offset = this.size / 2;
+        let xCenter = this.x * this.size;
+        let yCenter = this.y * this.size;
+        let size = this.size / 3;
+        circle(xCenter + offset, yCenter + offset, size);
     }
 }
 
@@ -224,7 +268,7 @@ class MazeGenerator {
     constructor(gameMap) {
         this.gameMap = gameMap;
 
-        this.randomWallProb = 0.2;
+        this.randomWallProb = 0.4;
     }
 
     createRandomWall(x, y) {
