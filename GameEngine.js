@@ -9,8 +9,8 @@ class GameEngine {
             this.gameMap[i] = [];
             for (let j = 0; j < cols; j++) {
                 let pellet;
-                if (random() <= pelletProb) {
-                    pellet = pelletCreator(i, j, random(5, 10));
+                if (randomInRange(0, 1) <= pelletProb) {
+                    pellet = pelletCreator(i, j, randomInRange(5, 10));
                 }
                 this.gameMap[i][j] = cellCreator(i, j, pellet);
             }
@@ -25,4 +25,8 @@ class GameEngine {
             this.pacman.move(direction, this.gameMap);
         }
     }
+}
+
+function randomInRange(min, max) {
+    return Math.random() * (max - min) + min;
 }

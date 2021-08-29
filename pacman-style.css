@@ -1,0 +1,12 @@
+.pacman {
+    fill: yellow;
+}
+.pacman-eye {
+    fill: black;
+}
+.pellet {
+    fill: red;
+}
+.wall {
+    stroke: black !important;
+}

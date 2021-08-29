@@ -125,7 +125,7 @@ class MazeGenerator {
 
     createRandomWall(x, y) {
         let cell = this.gameMap[x][y];
-        let wallType = Math.floor(random(0, 4));
+        let wallType = Math.floor(randomInRange(0, 4));
         switch (wallType) {
             case 0: // LEFT
                 cell.createLeftWall();
@@ -161,10 +161,14 @@ class MazeGenerator {
     generate() {
         for (let i = 0; i < this.gameMap.length; i++) {
             for (let j = 0; j < this.gameMap[i].length; j++) {
-                if (random() <= this.randomWallProb) {
+                if (randomInRange(0, 1) <= this.randomWallProb) {
                     this.createRandomWall(i, j);
                 }
             }
         }
     }
+}
+
+function randomInRange(min, max) {
+    return Math.random() * (max - min) + min;
 }
