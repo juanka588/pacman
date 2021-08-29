@@ -15,6 +15,8 @@ let gameEngine;
 let svgElement;
 let width = 400;
 let height = 400;
+const PI = Math.PI;
+const frameRate = 100;
 
 function setup() {
     svgElement = document.querySelector("#game-screen");
@@ -26,16 +28,16 @@ function setup() {
     gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
     setTimeout(() => {
         draw();
-    }, 500);
+    }, frameRate);
 }
 
 function draw() {
     //background(220);
     let direction = directions[currentDirection];
     gameEngine.gameLoop(direction);
-    // setTimeout(() => {
-    //     draw();
-    // }, 500);
+    setTimeout(() => {
+        draw();
+    }, frameRate);
 }
 
 function keyPressed(evt) {
@@ -61,6 +63,7 @@ class PacmanAdapter {
         this.closingAngle = 0.8;
         this.animationRate = 0.05;
         this.rotation = 0;
+        this.geometryRef = undefined;
     }
 
     move(direction, gameMap) {
@@ -84,6 +87,11 @@ class PacmanAdapter {
     }
 
     draw() {
+        if (this.geometryRef) {
+            svgElement.removeChild(this.geometryRef);
+        }
+        let group = createGroup("pacman-container");
+
         // push();
         let xCenter = this.pacman.x * this.size;
         let yCenter = this.pacman.y * this.size;
@@ -107,11 +115,17 @@ class PacmanAdapter {
         // rotate(this.rotation);
         // fill(212, 205, 13);
         // arc(0, 0, size, size, 0, 2 * PI * this.closingAngle);
-        createCircle(xCenter + offset, yCenter + offset, size / 2, "pacman");
+        let body = createCircle(xCenter + offset, yCenter + offset, size / 2, "pacman");
         //
         // fill(0);
-        createCircle(xCenter + offset + sign * offset * 0.3, yCenter + offset + sign * offset * 0.5, size * 0.1, "pacman-eye");
+        let eye = createCircle(xCenter + offset + sign * offset * 0.3, yCenter + offset + sign * offset * 0.5, size * 0.1, "pacman-eye");
         // pop();
+
+        group.appendChild(body);
+        group.appendChild(eye);
+
+        this.geometryRef = group;
+        svgElement.appendChild(this.geometryRef);
     }
 }
 
@@ -119,18 +133,29 @@ class PelletAdapter {
     constructor(pellet, size) {
         this.pellet = pellet;
         this.size = size;
+        this.hasBeenCreated = false;
+        this.geometryRef = undefined;
     }
 
     score() {
+        if (this.geometryRef) {
+            svgElement.removeChild(this.geometryRef);
+            this.geometryRef = undefined;
+        }
         return this.pellet.score();
     }
 
     draw() {
+        if (this.hasBeenCreated) {
+            return;
+        }
         let offset = this.size / 2;
         let xCenter = this.pellet.x * this.size;
         let yCenter = this.pellet.y * this.size;
         let size = this.size / 3;
-        createCircle(xCenter + offset, yCenter + offset, size, "pellet");
+        this.geometryRef = createCircle(xCenter + offset, yCenter + offset, size, "pellet");
+        svgElement.appendChild(this.geometryRef);
+        this.hasBeenCreated = true;
     }
 }
 
@@ -138,6 +163,7 @@ class CellAdapter {
     constructor(cell, size) {
         this.cell = cell;
         this.size = size;
+        this.hasBeenCreated = false;
     }
 
     hasPellet() {
@@ -185,6 +211,9 @@ class CellAdapter {
     }
 
     draw() {
+        if (this.hasBeenCreated) {
+            return;
+        }
         let top = this.cell.y * this.size;
         let bottom = (this.cell.y + 1) * this.size;
         let left = this.cell.x * this.size;
@@ -192,21 +221,22 @@ class CellAdapter {
         let className = "wall";
 
         if (this.hasLeftWall()) {
-            createLine(left, top, left, bottom, className);
+            svgElement.appendChild(createLine(left, top, left, bottom, className));
         }
         if (this.hasTopWall()) {
-            createLine(left, top, right, top, className);
+            svgElement.appendChild(createLine(left, top, right, top, className));
         }
         if (this.hasRightWall()) {
-            createLine(right, top, right, bottom, className);
+            svgElement.appendChild(createLine(right, top, right, bottom, className));
         }
         if (this.hasBottomWall()) {
-            createLine(left, bottom, right, bottom, className);
+            svgElement.appendChild(createLine(left, bottom, right, bottom, className));
         }
 
         if (this.cell.hasPellet()) {
             this.cell.pellet.draw();
         }
+        this.hasBeenCreated = true;
     }
 }
 
@@ -247,8 +277,13 @@ function createCircle(cx, cy, r, className) {
     myCircle.setAttributeNS(null, "cy", cy);
     myCircle.setAttributeNS(null, "r", r);
     myCircle.setAttributeNS(null, "class", className);
-    svgElement.appendChild(myCircle);
     return myCircle;
+}
+
+function createGroup(className) {
+    let myGroup = document.createElementNS(svgNS, "g");
+    myGroup.setAttributeNS(null, "class", className);
+    return myGroup;
 }
 
 function createLine(x1, y1, x2, y2, className) {
@@ -259,6 +294,5 @@ function createLine(x1, y1, x2, y2, className) {
     myLine.setAttributeNS(null, "y2", y2);
     myLine.setAttributeNS(null, "stroke", "green");
     myLine.setAttributeNS(null, "className", className);
-    svgElement.appendChild(myLine);
     return myLine;
 }
