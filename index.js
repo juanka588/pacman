@@ -1,4 +1,3 @@
-let pacman;
 let rows;
 let cols;
 let directions = [
@@ -11,43 +10,20 @@ let directions = [
 let currentDirection = 0;
 let size = 20;
 
-let gameMap = [];
-
-let pelletProb = 0.2;
+let gameEngine;
 
 function setup() {
     createCanvas(400, 400);
     frameRate(10);
     rows = width / size;
     cols = width / size;
-    pacman = new Pacman(rows / 2, cols / 2, size);
-    for (let i = 0; i < rows; i++) {
-        gameMap[i] = [];
-        for (let j = 0; j < cols; j++) {
-            let pellet;
-            if (random() <= pelletProb) {
-                pellet = new Pellet(i, j, size, random(5, 10));
-            }
-            gameMap[i][j] = new Cell(i, j, size, pellet);
-        }
-    }
-
-    let mazeGen = new MazeGenerator(gameMap);
-    mazeGen.generate();
+    gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
 }
 
 function draw() {
     background(220);
     let direction = directions[currentDirection];
-    if (pacman.canMove(direction)) {
-        pacman.move(direction, gameMap);
-    }
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            gameMap[i][j].draw();
-        }
-    }
-    pacman.draw();
+    gameEngine.gameLoop(direction);
 }
 
 function keyPressed() {
@@ -62,11 +38,9 @@ function keyPressed() {
     }
 }
 
-class Pacman {
-    constructor(x, y, size) {
-        this.x = x;
-        this.y = y;
-        this.score = 0;
+class PacmanAdapter {
+    constructor(pacman, size) {
+        this.pacman = pacman;
         this.size = size;
         this.closingAngle = 0.8;
         this.animationRate = 0.05;
@@ -74,12 +48,6 @@ class Pacman {
     }
 
     move(direction, gameMap) {
-        let cell = gameMap[this.x][this.y];
-        cell.visited = true;
-
-        if (cell.hasWallsInDirection(direction)) {
-            return;
-        }
         if (direction.y < 0) { // up
             this.rotation = -PI / 2;
         }
@@ -92,30 +60,17 @@ class Pacman {
         if (direction.x < 0) { // left
             this.rotation = -3 * PI / 4;
         }
-        this.y = this.y + direction.y;
-        this.x = this.x + direction.x;
-        if (cell.hasPellet()) {
-            this.score = this.score + cell.pellet.points;
-            cell.removePellet();
-        }
+        this.pacman.move(direction, gameMap);
     }
 
-    canMove(direction) {
-        let newX = this.x + direction.x;
-        let newY = this.y + direction.y;
-        if (
-            newX < 0 || newX >= cols ||
-            newY < 0 || newY >= rows
-        ) {
-            return false;
-        }
-        return true;
+    canMove(direction, rows, cols) {
+        return this.pacman.canMove(direction, rows, cols);
     }
 
     draw() {
         push();
-        let xCenter = this.x * this.size;
-        let yCenter = this.y * this.size;
+        let xCenter = this.pacman.x * this.size;
+        let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
         let size = this.size;
 
@@ -143,101 +98,82 @@ class Pacman {
     }
 }
 
-class Pellet {
-    constructor(x, y, size, points) {
-        this.x = x;
-        this.y = y;
+class PelletAdapter {
+    constructor(pellet, size) {
+        this.pellet = pellet;
         this.size = size;
-        this.points = points;
+    }
+
+    score() {
+        return this.pellet.score();
     }
 
     draw() {
-        fill(255, this.points);
+        fill(255, this.pellet.points);
         let offset = this.size / 2;
-        let xCenter = this.x * this.size;
-        let yCenter = this.y * this.size;
+        let xCenter = this.pellet.x * this.size;
+        let yCenter = this.pellet.y * this.size;
         let size = this.size / 3;
         circle(xCenter + offset, yCenter + offset, size);
     }
 }
 
-class Cell {
-    constructor(x, y, size, pellet) {
-        this.x = x;
-        this.y = y;
+class CellAdapter {
+    constructor(cell, size) {
+        this.cell = cell;
         this.size = size;
-        this.walls = [
-            false, // left
-            false, // top
-            false, // right
-            false, // down
-        ];
-        this.pellet = pellet;
-        this.visited = false;
     }
 
     hasPellet() {
-        return !(this.pellet === undefined);
+        return this.cell.hasPellet();
     }
 
     removePellet() {
-        this.pellet = undefined;
+        this.cell.removePellet();
     }
 
     hasWallsInDirection(direction) {
-        if (direction.x < 0) {
-            return this.hasLeftWall();
-        }
-        if (direction.y < 0) {
-            return this.hasTopWall();
-        }
-        if (direction.x > 0) {
-            return this.hasRightWall();
-        }
-        if (direction.y > 0) {
-            return this.hasBottomWall();
-        }
-        return false;
+       return  this.cell.hasWallsInDirection(direction);
     }
 
     createLeftWall() {
-        this.walls[0] = true;
+        this.cell.createLeftWall()
     }
 
     createTopWall() {
-        this.walls[1] = true;
+        this.cell.createTopWall()
     }
 
     createRightWall() {
-        this.walls[2] = true;
+        this.cell.createRightWall()
     }
 
     createBottomWall() {
-        this.walls[3] = true;
+        this.cell.createBottomWall()
     }
 
     hasLeftWall() {
-        return this.walls[0];
+        return this.cell.hasLeftWall()
     }
 
     hasTopWall() {
-        return this.walls[1];
+        return this.cell.hasTopWall()
     }
 
     hasRightWall() {
-        return this.walls[2];
+        return this.cell.hasRightWall()
     }
 
     hasBottomWall() {
-        return this.walls[3];
+        return this.cell.hasBottomWall();
     }
 
     draw() {
         stroke(0);
-        let top = this.y * this.size;
-        let bottom = (this.y + 1) * this.size;
-        let left = this.x * this.size;
-        let right = (this.x + 1) * this.size;
+        let top = this.cell.y * this.size;
+        let bottom = (this.cell.y + 1) * this.size;
+        let left = this.cell.x * this.size;
+        let right = (this.cell.x + 1) * this.size;
 
         if (this.hasLeftWall()) {
             line(left, top, left, bottom);
@@ -251,68 +187,42 @@ class Cell {
         if (this.hasBottomWall()) {
             line(left, bottom, right, bottom);
         }
-        if (this.visited) {
+        if (this.cell.visited) {
             noStroke();
             fill(0, 0, 255, 80);
             rect(left, top, this.size, this.size);
         }
 
-        if (this.hasPellet()) {
-            this.pellet.draw();
+        if (this.cell.hasPellet()) {
+            this.cell.pellet.draw();
         }
     }
 }
 
-
-class MazeGenerator {
-    constructor(gameMap) {
-        this.gameMap = gameMap;
-
-        this.randomWallProb = 0.4;
+class P5GameAdapter {
+    constructor(gameEngine) {
+        this.gameEngine = gameEngine;
     }
 
-    createRandomWall(x, y) {
-        let cell = this.gameMap[x][y];
-        let wallType = Math.floor(random(0, 4));
-        switch (wallType) {
-            case 0: // LEFT
-                cell.createLeftWall();
-                if (x > 0) {
-                    let leftCell = this.gameMap[x - 1][y];
-                    leftCell.createRightWall();
-                }
-                break;
-            case 1: // Top
-                cell.createTopWall();
-                if (y > 0) {
-                    let topCell = this.gameMap[x][y - 1];
-                    topCell.createBottomWall();
-                }
-                break;
-            case 2: // Right
-                cell.createRightWall();
-                if (x < cols - 1) {
-                    let rightCell = this.gameMap[x + 1][y];
-                    rightCell.createLeftWall();
-                }
-                break;
-            case 3: // Bottom
-                cell.createBottomWall();
-                if (y < rows - 1) {
-                    let bottomCell = this.gameMap[x][y + 1];
-                    bottomCell.createTopWall();
-                }
-                break;
-        }
-    }
-
-    generate() {
-        for (let i = 0; i < rows; i++) {
-            for (let j = 0; j < cols; j++) {
-                if (random() <= this.randomWallProb) {
-                    this.createRandomWall(i, j);
-                }
+    gameLoop(direction) {
+        this.gameEngine.gameLoop(direction);
+        for (let i = 0; i < this.gameEngine.rows; i++) {
+            for (let j = 0; j < this.gameEngine.cols; j++) {
+                this.gameEngine.gameMap[i][j].draw();
             }
         }
+        this.gameEngine.pacman.draw();
     }
+}
+
+function pacmanCreator(x, y) {
+    return new PacmanAdapter(new Pacman(x, y), size);
+}
+
+function pelletCreator(x, y, points) {
+    return new PelletAdapter(new Pellet(x, y, points), size);
+}
+
+function cellCreator(x, y, pellet) {
+    return new CellAdapter(new Cell(x, y, pellet), size);
 }
