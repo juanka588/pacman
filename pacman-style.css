@@ -10,3 +10,6 @@
 .wall {
     stroke: black !important;
 }
+#game-screen {
+    background-color: lightgrey;
+}

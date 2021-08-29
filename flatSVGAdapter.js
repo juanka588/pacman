@@ -68,16 +68,16 @@ class PacmanAdapter {
 
     move(direction, gameMap) {
         if (direction.y < 0) { // up
-            this.rotation = -PI / 2;
+            this.rotation = -90;
         }
         if (direction.y > 0) { // down
-            this.rotation = PI / 2;
+            this.rotation = 90;
         }
         if (direction.x > 0) { // right
             this.rotation = 0;
         }
         if (direction.x < 0) { // left
-            this.rotation = -3 * PI / 4;
+            this.rotation = -270;
         }
         this.pacman.move(direction, gameMap);
     }
@@ -88,11 +88,11 @@ class PacmanAdapter {
 
     draw() {
         if (this.geometryRef) {
-            svgElement.removeChild(this.geometryRef);
+            this.moveAndTransformRef();
+            return;
         }
         let group = createGroup("pacman-container");
 
-        // push();
         let xCenter = this.pacman.x * this.size;
         let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
@@ -106,26 +106,31 @@ class PacmanAdapter {
         //     this.animationRate = -this.animationRate;
         // }
         //
-        // translate(xCenter + offset, yCenter + offset);
+        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
         let sign = -1;
-        // if (this.rotation === (-3 * PI / 4)) {
-        //     // must mirror
-        //     sign = 1;
-        // }
-        // rotate(this.rotation);
-        // fill(212, 205, 13);
+        if (this.rotation === -270) {
+            // must mirror
+            sign = 1;
+        }
         // arc(0, 0, size, size, 0, 2 * PI * this.closingAngle);
-        let body = createCircle(xCenter + offset, yCenter + offset, size / 2, "pacman");
-        //
-        // fill(0);
-        let eye = createCircle(xCenter + offset + sign * offset * 0.3, yCenter + offset + sign * offset * 0.5, size * 0.1, "pacman-eye");
-        // pop();
+        let body = createCircle(0, 0, size / 2, "pacman");
+
+        let eye = createCircle(sign * offset * 0.3, sign * offset * 0.5, size * 0.1, "pacman-eye");
 
         group.appendChild(body);
         group.appendChild(eye);
 
         this.geometryRef = group;
         svgElement.appendChild(this.geometryRef);
+    }
+
+    moveAndTransformRef() {
+        let group = this.geometryRef;
+        let xCenter = this.pacman.x * this.size;
+        let yCenter = this.pacman.y * this.size;
+        let offset = this.size / 2;
+        let size = this.size;
+        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
     }
 }
 
@@ -295,4 +300,19 @@ function createLine(x1, y1, x2, y2, className) {
     myLine.setAttributeNS(null, "stroke", "green");
     myLine.setAttributeNS(null, "className", className);
     return myLine;
+}
+
+function translateAndRotate(element, x, y, angle) {
+    element.setAttributeNS(null, "transform", `translate(${x},${y}) rotate(${angle})`);
+    return element;
+}
+
+function translate(element, x, y) {
+    element.setAttributeNS(null, "transform", `translate(${x},${y})`);
+    return element;
+}
+
+function rotate(element, angle) {
+    element.setAttributeNS(null, "transform", `rotate(${angle})`);
+    return element;
 }
