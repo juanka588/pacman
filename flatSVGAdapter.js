@@ -8,7 +8,7 @@ let directions = [
     {x: -1, y: 0} // 4 left
 ];
 let currentDirection = 0;
-let size = 50;
+let size = 20;
 
 let gameEngine;
 
@@ -60,6 +60,7 @@ class PacmanAdapter {
         this.pacman = pacman;
         this.size = size;
         this.rotation = 0;
+        this.mustMirror = false;
         this.geometryRef = undefined;
     }
 
@@ -72,9 +73,11 @@ class PacmanAdapter {
         }
         if (direction.x > 0) { // right
             this.rotation = 0;
+            this.mustMirror = false;
         }
         if (direction.x < 0) { // left
             this.rotation = 180;
+            this.mustMirror = true;
         }
         this.pacman.move(direction, gameMap);
     }
@@ -94,7 +97,7 @@ class PacmanAdapter {
         let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
         let size = this.size;
-        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
+        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation, this.mustMirror);
         let body = createCircle(0, 0, size / 2, "pacman");
         let eye = createCircle(offset * 0.3, -offset * 0.5, size * 0.1, "pacman-eye");
 
@@ -110,7 +113,7 @@ class PacmanAdapter {
         let xCenter = this.pacman.x * this.size;
         let yCenter = this.pacman.y * this.size;
         let offset = this.size / 2;
-        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation);
+        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation, this.mustMirror);
     }
 }
 
@@ -282,12 +285,16 @@ function createLine(x1, y1, x2, y2, className) {
     return myLine;
 }
 
-function translateAndRotate(element, x, y, angle) {
-    if (angle === 180) {
-        element.setAttributeNS(null, "transform", `translate(${x},${y}) scale(-1,1)`);
-    } else {
-        element.setAttributeNS(null, "transform", `translate(${x},${y}) rotate(${angle})`);
+function translateAndRotate(element, x, y, angle, mustMirror) {
+    let scale = "";
+    if (mustMirror) {
+        scale = "scale(-1,1)";
     }
+    let angleToApply = angle;
+    if (angle === 180) {
+        angleToApply = 0;
+    }
+    element.setAttributeNS(null, "transform", `translate(${x},${y}) ${scale} rotate(${angleToApply})`);
     return element;
 }
 
