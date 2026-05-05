@@ -10,7 +10,7 @@ function setup() {
     frameRate(10);
     rows = width / size;
     cols = width / size;
-    gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
+    gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
     window.gameEngine = gameEngine;
     controls = new KeyboardControlAdapter(document);
     window.controls = controls;
@@ -198,6 +198,54 @@ class CellAdapter {
     }
 }
 
+const GHOST_COLORS = {
+    blinky: [255, 0,   0  ],
+    pinky:  [255, 184, 255],
+    inky:   [0,   255, 255],
+    clyde:  [255, 184, 82 ],
+};
+
+class GhostAdapter {
+    constructor(ghost, size) {
+        this.ghost = ghost;
+        this.size = size;
+    }
+
+    draw() {
+        const g = this.ghost;
+        push();
+        const xCenter = g.x * this.size + this.size / 2;
+        const yCenter = g.y * this.size + this.size / 2;
+        const r = this.size / 2;
+        translate(xCenter, yCenter);
+
+        if (g.mode === 'frightened') {
+            fill(0, 0, 200);
+        } else {
+            const [cr, cg, cb] = GHOST_COLORS[g.id] || [200, 200, 200];
+            fill(cr, cg, cb);
+        }
+        noStroke();
+        // Body: semicircle top + rectangular bottom
+        arc(0, 0, r * 2, r * 2, PI, 0);
+        rect(-r, 0, r * 2, r);
+        // Wavy bottom — three bumps
+        const bumpR = r / 3;
+        fill(0);
+        for (let b = -1; b <= 1; b++) {
+            circle(b * bumpR * 2, r, bumpR);
+        }
+        // Eyes
+        fill(255);
+        circle(-r * 0.35, -r * 0.1, r * 0.5);
+        circle( r * 0.35, -r * 0.1, r * 0.5);
+        fill(0, 0, 200);
+        circle(-r * 0.35, -r * 0.1, r * 0.25);
+        circle( r * 0.35, -r * 0.1, r * 0.25);
+        pop();
+    }
+}
+
 class P5GameAdapter {
     constructor(gameEngine) {
         this.gameEngine = gameEngine;
@@ -211,6 +259,15 @@ class P5GameAdapter {
             }
         }
         this.gameEngine.pacman.draw();
+        for (const ghost of this.gameEngine.ghosts) {
+            ghost.draw();
+        }
+        if (this.gameEngine.gameOver) {
+            fill(255, 0, 0);
+            textSize(32);
+            textAlign(CENTER, CENTER);
+            text('GAME OVER', width / 2, height / 2);
+        }
     }
 }
 
@@ -224,4 +281,8 @@ function pelletCreator(x, y, points) {
 
 function cellCreator(x, y, pellet) {
     return new CellAdapter(new Cell(x, y, pellet), size);
+}
+
+function ghostCreator(x, y, id) {
+    return new GhostAdapter(new Ghost(x, y, id), size);
 }

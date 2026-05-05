@@ -3,6 +3,7 @@ class Pacman {
         this.x = x;
         this.y = y;
         this.score = 0;
+        this.direction = { x: 0, y: 0 };
     }
 
     move(direction, gameMap) {
@@ -11,6 +12,7 @@ class Pacman {
         if (cell.hasWallsInDirection(direction)) {
             return;
         }
+        this.direction = direction;
         this.y = this.y + direction.y;
         this.x = this.x + direction.x;
         let newCell = gameMap[this.x][this.y];
@@ -245,7 +247,131 @@ function randomInRange(min, max) {
     return Math.random() * (max - min) + min;
 }
 
+// ─── Ghost ───────────────────────────────────────────────────────────────────
+
+class Ghost {
+    constructor(x, y, id) {
+        this.x = x;
+        this.y = y;
+        this.id = id;
+        this.direction = { x: 1, y: 0 };
+        this.mode = 'scatter';
+        this._previousMode = 'scatter';
+        this.frightTimer = 0;
+
+        // Fixed scatter-corner targets per ghost (classic Pac-Man corners)
+        this._scatterTargets = {
+            blinky: { x: 0,  y: 0  },   // top-left
+            pinky:  { x: 19, y: 0  },   // top-right (assume 20-wide grid)
+            inky:   { x: 0,  y: 19 },   // bottom-left
+            clyde:  { x: 19, y: 19 },   // bottom-right
+        };
+    }
+
+    // Returns all passable, in-bounds directions excluding the direct reverse
+    availableDirections(gameMap, rows, cols) {
+        const reverse = { x: -this.direction.x, y: -this.direction.y };
+        const candidates = [
+            { x: 1,  y: 0  },
+            { x: -1, y: 0  },
+            { x: 0,  y: 1  },
+            { x: 0,  y: -1 },
+        ];
+        return candidates.filter(d => {
+            if (d.x === reverse.x && d.y === reverse.y) return false;
+            const nx = this.x + d.x;
+            const ny = this.y + d.y;
+            if (nx < 0 || nx >= rows || ny < 0 || ny >= cols) return false;
+            return !gameMap[this.x][this.y].hasWallsInDirection(d);
+        });
+    }
+
+    // Target tile based on id and mode
+    targetTile(pacman, blinkyPos) {
+        if (this.mode === 'scatter') {
+            return this._scatterTargets[this.id] || { x: 0, y: 0 };
+        }
+        // chase mode
+        if (this.id === 'blinky') {
+            return { x: pacman.x, y: pacman.y };
+        }
+        if (this.id === 'pinky') {
+            // 4 tiles ahead of Pac-Man's last direction
+            return {
+                x: pacman.x + (pacman.direction ? pacman.direction.x * 4 : 0),
+                y: pacman.y + (pacman.direction ? pacman.direction.y * 4 : 0),
+            };
+        }
+        if (this.id === 'inky') {
+            // Vector from Blinky through 2 tiles ahead of Pac-Man, doubled
+            const pivot = {
+                x: pacman.x + (pacman.direction ? pacman.direction.x * 2 : 0),
+                y: pacman.y + (pacman.direction ? pacman.direction.y * 2 : 0),
+            };
+            const bx = blinkyPos ? blinkyPos.x : 0;
+            const by = blinkyPos ? blinkyPos.y : 0;
+            return { x: pivot.x + (pivot.x - bx), y: pivot.y + (pivot.y - by) };
+        }
+        if (this.id === 'clyde') {
+            // Chase when far (>8 tiles), scatter corner when close
+            const dist = Math.abs(this.x - pacman.x) + Math.abs(this.y - pacman.y);
+            if (dist > 8) return { x: pacman.x, y: pacman.y };
+            return this._scatterTargets.clyde;
+        }
+        return { x: pacman.x, y: pacman.y };
+    }
+
+    chooseDirection(gameMap, rows, cols, pacman, blinkyPos) {
+        const available = this.availableDirections(gameMap, rows, cols);
+        if (available.length === 0) return this.direction;
+
+        if (this.mode === 'frightened') {
+            return available[Math.floor(randomInRange(0, available.length))];
+        }
+
+        const target = this.targetTile(pacman, blinkyPos);
+        let best = null;
+        let bestDist = Infinity;
+        for (const d of available) {
+            const nx = this.x + d.x;
+            const ny = this.y + d.y;
+            const dist = Math.pow(nx - target.x, 2) + Math.pow(ny - target.y, 2);
+            if (dist < bestDist) {
+                bestDist = dist;
+                best = d;
+            }
+        }
+        return best || this.direction;
+    }
+
+    move(gameMap, rows, cols, pacman, blinkyPos) {
+        this.direction = this.chooseDirection(gameMap, rows, cols, pacman, blinkyPos);
+        const nx = this.x + this.direction.x;
+        const ny = this.y + this.direction.y;
+        if (nx >= 0 && nx < rows && ny >= 0 && ny < cols &&
+            !gameMap[this.x][this.y].hasWallsInDirection(this.direction)) {
+            this.x = nx;
+            this.y = ny;
+        }
+    }
+
+    frighten(ticks) {
+        if (this.mode !== 'frightened') this._previousMode = this.mode;
+        this.mode = 'frightened';
+        this.frightTimer = ticks;
+    }
+
+    tick() {
+        if (this.mode === 'frightened' && this.frightTimer > 0) {
+            this.frightTimer--;
+            if (this.frightTimer === 0) {
+                this.mode = this._previousMode;
+            }
+        }
+    }
+}
+
 // Allow Node/Jest to require this file without breaking browser script-tag loading
 if (typeof module !== 'undefined') {
-    module.exports = { Pacman, Pellet, Cell, MazeGenerator, randomInRange };
+    module.exports = { Pacman, Pellet, Cell, MazeGenerator, Ghost, randomInRange };
 }

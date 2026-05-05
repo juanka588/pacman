@@ -17,7 +17,7 @@ function setup() {
     svgElement.setAttribute("height", height);
     rows = width / size;
     cols = width / size;
-    gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
+    gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
     window.gameEngine = gameEngine;
     // SVG element needs focus to receive keyboard events; attach controls to it
     controls = new KeyboardControlAdapter(svgElement);
@@ -233,6 +233,89 @@ class SVGGameAdapter {
             }
         }
         this.gameEngine.pacman.draw();
+        for (const ghost of this.gameEngine.ghosts) {
+            ghost.draw();
+        }
+    }
+}
+
+const SVG_GHOST_COLORS = {
+    blinky: '#FF0000',
+    pinky:  '#FFB8FF',
+    inky:   '#00FFFF',
+    clyde:  '#FFB852',
+};
+
+class SVGGhostAdapter {
+    constructor(ghost, size) {
+        this.ghost = ghost;
+        this.size = size;
+        this.geometryRef = null;
+    }
+
+    draw() {
+        if (!this.geometryRef) {
+            this._create();
+        }
+        this._updateTransform();
+        this._updateColor();
+    }
+
+    _create() {
+        const s = this.size;
+        const r = s / 2;
+        const group = createGroup('ghost-container ghost-' + this.ghost.id);
+
+        // Body: arc top + rect bottom as a single path
+        const bumpW = r / 3;
+        // M = top-left of bounding box, arc across the top, straight down sides,
+        // three upward bumps along the bottom
+        const d = [
+            `M ${-r} 0`,
+            `A ${r} ${r} 0 0 1 ${r} 0`,
+            `L ${r} ${r}`,
+            `Q ${r - bumpW * 0.5} ${r} ${r - bumpW} ${r - bumpW}`,
+            `Q ${r - bumpW * 1.5} ${r - bumpW * 2} ${r - bumpW * 2} ${r}`,
+            `Q ${r - bumpW * 2.5} ${r} ${-r + bumpW * 2} ${r}`,
+            `Q ${-r + bumpW * 1.5} ${r - bumpW * 2} ${-r + bumpW} ${r - bumpW}`,
+            `Q ${-r + bumpW * 0.5} ${r} ${-r} ${r}`,
+            'Z',
+        ].join(' ');
+
+        const body = document.createElementNS(svgNS, 'path');
+        body.setAttributeNS(null, 'd', d);
+        body.setAttributeNS(null, 'class', 'ghost-body');
+
+        // Eyes
+        const eyeL = createCircle(-r * 0.35, -r * 0.1, r * 0.25, 'ghost-eye-white');
+        const eyeR = createCircle( r * 0.35, -r * 0.1, r * 0.25, 'ghost-eye-white');
+        const pupilL = createCircle(-r * 0.35, -r * 0.1, r * 0.12, 'ghost-pupil');
+        const pupilR = createCircle( r * 0.35, -r * 0.1, r * 0.12, 'ghost-pupil');
+
+        group.appendChild(body);
+        group.appendChild(eyeL);
+        group.appendChild(eyeR);
+        group.appendChild(pupilL);
+        group.appendChild(pupilR);
+
+        svgElement.appendChild(group);
+        this.geometryRef = group;
+    }
+
+    _updateTransform() {
+        const xCenter = this.ghost.x * this.size + this.size / 2;
+        const yCenter = this.ghost.y * this.size + this.size / 2;
+        this.geometryRef.setAttributeNS(null, 'transform', `translate(${xCenter},${yCenter})`);
+    }
+
+    _updateColor() {
+        const body = this.geometryRef.querySelector('.ghost-body');
+        if (!body) return;
+        if (this.ghost.mode === 'frightened') {
+            body.setAttributeNS(null, 'fill', '#0000CC');
+        } else {
+            body.setAttributeNS(null, 'fill', SVG_GHOST_COLORS[this.ghost.id] || '#CCCCCC');
+        }
     }
 }
 
@@ -246,6 +329,10 @@ function pelletCreator(x, y, points) {
 
 function cellCreator(x, y, pellet) {
     return new CellAdapter(new Cell(x, y, pellet), size);
+}
+
+function ghostCreator(x, y, id) {
+    return new SVGGhostAdapter(new Ghost(x, y, id), size);
 }
 
 
