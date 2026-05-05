@@ -19,8 +19,7 @@ function setup() {
     cols = width / size;
     gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
     window.gameEngine = gameEngine;
-    // SVG element needs focus to receive keyboard events; attach controls to it
-    controls = new KeyboardControlAdapter(svgElement);
+    controls = new KeyboardControlAdapter(document);
     window.controls = controls;
     svgElement.focus();
     setTimeout(() => { draw(); }, FRAME_RATE);

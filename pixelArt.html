@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pac-Man — Pixel Art</title>
+    <link rel="stylesheet" href="pacman-style.css">
+    <script src="pacman.js"></script>
+    <script src="GameEngine.js"></script>
+    <script src="controls/KeyboardControlAdapter.js"></script>
+    <script src="controls/SwipeControlAdapter.js"></script>
+    <script src="controls/GamepadControlAdapter.js"></script>
+    <script src="pixelArtAdapter.js"></script>
+</head>
+<body>
+<div class="game-wrapper">
+    <header class="game-header">
+        <span class="game-title">PAC-MAN</span>
+        <span id="score">SCORE: 0</span>
+    </header>
+    <div class="game-layout">
+        <!-- left panel with same controls info as other pages -->
+        <aside class="controls-panel controls-panel--left">
+            <h3>CONTROLS</h3>
+            <ul>
+                <li><kbd>↑</kbd> Move Up</li>
+                <li><kbd>↓</kbd> Move Down</li>
+                <li><kbd>←</kbd> Move Left</li>
+                <li><kbd>→</kbd> Move Right</li>
+            </ul>
+            <h3>TIPS</h3>
+            <ul>
+                <li>Eat all pellets to win</li>
+                <li>Avoid ghosts!</li>
+            </ul>
+        </aside>
+        <canvas id="game-screen" width="320" height="320" tabindex="0"></canvas>
+        <aside class="controls-panel controls-panel--right">
+            <h3>GHOSTS</h3>
+            <ul class="ghost-legend">
+                <li><span class="ghost-dot" style="background:#FF0000"></span> Blinky</li>
+                <li><span class="ghost-dot" style="background:#FFB8FF"></span> Pinky</li>
+                <li><span class="ghost-dot" style="background:#00FFFF"></span> Inky</li>
+                <li><span class="ghost-dot" style="background:#FFB852"></span> Clyde</li>
+            </ul>
+            <h3>MODES</h3>
+            <ul>
+                <li>🔵 Scatter</li>
+                <li>🔴 Chase</li>
+                <li>👻 Frightened</li>
+            </ul>
+        </aside>
+    </div>
+    <footer class="game-footer">
+        <a href="index.html">P5.js version</a> |
+        <a href="flatSVG.html">SVG version</a>
+    </footer>
+</div>
+<script>
+    let pixelArtGameAdapter;
+    let controls;
+    setup();
+</script>
+</body>
+</html>

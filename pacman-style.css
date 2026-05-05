@@ -60,6 +60,12 @@ body {
     border: 2px solid #1a78ff;
     box-shadow: 0 0 16px #1a78ff44;
     flex-shrink: 0;
+    cursor: default;
+}
+
+#game-screen:focus {
+    border-color: #FFD700;
+    box-shadow: 0 0 20px #FFD70066;
 }
 
 #game-canvas-container canvas {
