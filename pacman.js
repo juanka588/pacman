@@ -8,14 +8,14 @@ class Pacman {
     move(direction, gameMap) {
         let cell = gameMap[this.x][this.y];
         cell.visited = true;
-
         if (cell.hasWallsInDirection(direction)) {
             return;
         }
         this.y = this.y + direction.y;
         this.x = this.x + direction.x;
-        if (cell.hasPellet()) {
-            this.score = this.score + cell.removePellet();
+        let newCell = gameMap[this.x][this.y];
+        if (newCell.hasPellet()) {
+            this.score = this.score + newCell.removePellet();
         }
     }
 
@@ -143,14 +143,14 @@ class MazeGenerator {
                 break;
             case 2: // Right
                 cell.createRightWall();
-                if (x < this.gameMap[x].length - 1) {
+                if (x < this.gameMap.length - 1) {
                     let rightCell = this.gameMap[x + 1][y];
                     rightCell.createLeftWall();
                 }
                 break;
             case 3: // Bottom
                 cell.createBottomWall();
-                if (y < this.gameMap.length - 1) {
+                if (y < this.gameMap[x].length - 1) {
                     let bottomCell = this.gameMap[x][y + 1];
                     bottomCell.createTopWall();
                 }
@@ -166,9 +166,28 @@ class MazeGenerator {
                 }
             }
         }
+        this._sealBorders();
+    }
+
+    _sealBorders() {
+        const rows = this.gameMap.length;
+        const cols = this.gameMap[0].length;
+        for (let i = 0; i < rows; i++) {
+            this.gameMap[i][0].createTopWall();
+            this.gameMap[i][cols - 1].createBottomWall();
+        }
+        for (let j = 0; j < cols; j++) {
+            this.gameMap[0][j].createLeftWall();
+            this.gameMap[rows - 1][j].createRightWall();
+        }
     }
 }
 
 function randomInRange(min, max) {
     return Math.random() * (max - min) + min;
+}
+
+// Allow Node/Jest to require this file without breaking browser script-tag loading
+if (typeof module !== 'undefined') {
+    module.exports = { Pacman, Pellet, Cell, MazeGenerator, randomInRange };
 }

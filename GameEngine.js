@@ -27,6 +27,8 @@ class GameEngine {
     }
 }
 
-function randomInRange(min, max) {
-    return Math.random() * (max - min) + min;
+// Allow Node/Jest to require this file without breaking browser script-tag loading
+if (typeof module !== 'undefined') {
+    module.exports = { GameEngine };
 }
+
