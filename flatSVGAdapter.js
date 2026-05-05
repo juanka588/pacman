@@ -36,25 +36,14 @@ class PacmanAdapter {
         this.pacman = pacman;
         this.size = size;
         this.rotation = 0;
-        this.mustMirror = false;
         this.geometryRef = undefined;
     }
 
     move(direction, gameMap) {
-        if (direction.y < 0) { // up
-            this.rotation = -90;
-        }
-        if (direction.y > 0) { // down
-            this.rotation = 90;
-        }
-        if (direction.x > 0) { // right
-            this.rotation = 0;
-            this.mustMirror = false;
-        }
-        if (direction.x < 0) { // left
-            this.rotation = 180;
-            this.mustMirror = true;
-        }
+        if (direction.y < 0) this.rotation = -90;
+        if (direction.y > 0) this.rotation = 90;
+        if (direction.x > 0) this.rotation = 0;
+        if (direction.x < 0) this.rotation = 180;
         this.pacman.move(direction, gameMap);
     }
 
@@ -74,18 +63,23 @@ class PacmanAdapter {
         const group = createGroup('pacman-container');
         const r = this.size * 0.44;
 
-        const body = document.createElementNS(svgNS, 'path');
-        body.setAttributeNS(null, 'fill', '#FFD700');
+        // Full yellow circle — perfectly centered at origin
+        const body = createCircle(0, 0, r, 'pacman-body');
 
-        const eye = createCircle(r * 0.25, -r * 0.45, r * 0.15, 'pacman-eye');
+        // Black mouth wedge drawn on top to create the chomping gap
+        const mouth = document.createElementNS(svgNS, 'path');
+        mouth.setAttributeNS(null, 'fill', '#000000');
+
+        const eye = createCircle(r * 0.2, -r * 0.45, r * 0.12, 'pacman-eye');
 
         group.appendChild(body);
+        group.appendChild(mouth);
         group.appendChild(eye);
 
         this._r = r;
-        this._bodyEl = body;
-        this._mouthAngle = 0.4;  // start open
-        this._animDir = -1;       // closing first
+        this._mouthEl = mouth;
+        this._mouthAngle = 0.4;
+        this._animDir = -1;
 
         svgElement.appendChild(group);
         this.geometryRef = group;
@@ -94,25 +88,24 @@ class PacmanAdapter {
     _updateMouth() {
         this._mouthAngle += 0.12 * this._animDir;
         if (this._mouthAngle > 0.55) this._animDir = -1;
-        if (this._mouthAngle < 0.05) this._animDir = 1;
+        if (this._mouthAngle < 0.04) this._animDir = 1;
 
         const r = this._r;
-        const a = Math.max(0.05, this._mouthAngle);
-        // Bottom jaw edge, arc counterclockwise (large) to top jaw edge, close to center
-        const x1 = +(Math.cos(a) * r).toFixed(3);
-        const y1 = +(Math.sin(a) * r).toFixed(3);
-        const x2 = +(Math.cos(-a) * r).toFixed(3);
-        const y2 = +(Math.sin(-a) * r).toFixed(3);
-        const d = `M 0 0 L ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2} Z`;
-        this._bodyEl.setAttributeNS(null, 'd', d);
+        const a = Math.max(0.04, this._mouthAngle);
+        // Small-arc wedge from top-jaw to bottom-jaw (clockwise), closes to center
+        const tx = +(Math.cos(-a) * r).toFixed(3);
+        const ty = +(Math.sin(-a) * r).toFixed(3);
+        const bx = +(Math.cos(a) * r).toFixed(3);
+        const by = +(Math.sin(a) * r).toFixed(3);
+        const d = `M 0 0 L ${tx} ${ty} A ${r} ${r} 0 0 1 ${bx} ${by} Z`;
+        this._mouthEl.setAttributeNS(null, 'd', d);
     }
 
     _updateTransform() {
         const xCenter = this.pacman.x * this.size + this.size / 2;
         const yCenter = this.pacman.y * this.size + this.size / 2;
-        let transform = `translate(${xCenter},${yCenter}) rotate(${this.rotation})`;
-        if (this.mustMirror) transform += ' scale(-1,1)';
-        this.geometryRef.setAttributeNS(null, 'transform', transform);
+        this.geometryRef.setAttributeNS(null, 'transform',
+            `translate(${xCenter},${yCenter}) rotate(${this.rotation})`);
     }
 }
 
