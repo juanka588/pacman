@@ -7,6 +7,7 @@ const PELLET_METHODS  = ['score', 'draw'];
 const CELL_METHODS    = [
     'hasPellet', 'removePellet', 'hasWallsInDirection',
     'createLeftWall', 'createTopWall', 'createRightWall', 'createBottomWall',
+    'removeLeftWall', 'removeTopWall', 'removeRightWall', 'removeBottomWall',
     'hasLeftWall', 'hasTopWall', 'hasRightWall', 'hasBottomWall',
     'draw',
 ];
@@ -36,6 +37,10 @@ class StubCellAdapter {
     createTopWall() {}
     createRightWall() {}
     createBottomWall() {}
+    removeLeftWall() {}
+    removeTopWall() {}
+    removeRightWall() {}
+    removeBottomWall() {}
     hasLeftWall() { return false; }
     hasTopWall() { return false; }
     hasRightWall() { return false; }

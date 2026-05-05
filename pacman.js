@@ -100,6 +100,22 @@ class Cell {
         this.walls[3] = true;
     }
 
+    removeLeftWall() {
+        this.walls[0] = false;
+    }
+
+    removeTopWall() {
+        this.walls[1] = false;
+    }
+
+    removeRightWall() {
+        this.walls[2] = false;
+    }
+
+    removeBottomWall() {
+        this.walls[3] = false;
+    }
+
     hasLeftWall() {
         return this.walls[0];
     }
@@ -183,10 +199,10 @@ class MazeGenerator {
     _removeWallBetween(ax, ay, bx, by) {
         const a = this.gameMap[ax][ay];
         const b = this.gameMap[bx][by];
-        if (bx === ax - 1) { a.walls[0] = false; b.walls[2] = false; } // a→left, b→right
-        if (bx === ax + 1) { a.walls[2] = false; b.walls[0] = false; } // a→right, b→left
-        if (by === ay - 1) { a.walls[1] = false; b.walls[3] = false; } // a→top, b→bottom
-        if (by === ay + 1) { a.walls[3] = false; b.walls[1] = false; } // a→bottom, b→top
+        if (bx === ax - 1) { a.removeLeftWall();   b.removeRightWall();  }
+        if (bx === ax + 1) { a.removeRightWall();  b.removeLeftWall();   }
+        if (by === ay - 1) { a.removeTopWall();    b.removeBottomWall(); }
+        if (by === ay + 1) { a.removeBottomWall(); b.removeTopWall();    }
     }
 
     // Step 3: punch open random interior walls to create multiple paths (Pac-Man open feel)

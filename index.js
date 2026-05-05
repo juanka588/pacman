@@ -152,6 +152,22 @@ class CellAdapter {
         this.cell.createBottomWall()
     }
 
+    removeLeftWall() {
+        this.cell.removeLeftWall()
+    }
+
+    removeTopWall() {
+        this.cell.removeTopWall()
+    }
+
+    removeRightWall() {
+        this.cell.removeRightWall()
+    }
+
+    removeBottomWall() {
+        this.cell.removeBottomWall()
+    }
+
     hasLeftWall() {
         return this.cell.hasLeftWall()
     }
