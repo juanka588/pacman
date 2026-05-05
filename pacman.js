@@ -18,9 +18,10 @@ class Pacman {
         let newCell = gameMap[this.x][this.y];
         this.ateSuper = false;
         if (newCell.hasPellet()) {
-            const pellet = newCell.pellet;
-            // Check isSuper before removing (adapter may wrap the pellet)
-            const isSuper = (pellet && (pellet.isSuper || (pellet.pellet && pellet.pellet.isSuper)));
+            // Unwrap adapter layers to reach the raw pellet so isSuper is always readable
+            const rawCell = newCell.cell || newCell;
+            const pellet  = rawCell.pellet;
+            const isSuper = !!(pellet && (pellet.isSuper || (pellet.pellet && pellet.pellet.isSuper)));
             this.score = this.score + newCell.removePellet();
             if (isSuper) this.ateSuper = true;
         }

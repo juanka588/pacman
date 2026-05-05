@@ -62,17 +62,38 @@ class GameEngine {
     }
 
     gameLoop(direction) {
+        // Reset per-tick events
+        this.events = {
+            pelletEaten:     false,
+            superPelletEaten: false,
+            ghostEaten:      false,
+            died:            false,
+            frightenedRatio: 0,   // 0 = none frightened; >0 = max ratio remaining (1.0 = just started)
+        };
+
         if (this.gameOver || this.gameWon) return;
+
+        const pacCore = this.pacman.pacman || this.pacman;
+        const scoreBefore = pacCore.score;
+        const frightenedBefore = this.ghosts.map(g => (g.ghost || g).mode === 'frightened');
 
         if (this.pacman.canMove(direction, this.rows, this.cols)) {
             this.pacman.move(direction, this.gameMap);
+        }
+
+        // Detect pellet events
+        if (pacCore.score > scoreBefore) {
+            if (pacCore.ateSuper) {
+                this.events.superPelletEaten = true;
+            } else {
+                this.events.pelletEaten = true;
+            }
         }
 
         this._checkWinCondition();
         if (this.gameWon) return;
 
         // Super pellet: frighten all ghosts for 30 ticks
-        const pacCore = this.pacman.pacman || this.pacman;
         if (pacCore.ateSuper) {
             this.ghosts.forEach(g => { (g.ghost || g).frighten(30); });
             pacCore.ateSuper = false;
@@ -89,16 +110,27 @@ class GameEngine {
             if (this._ghostTick % 2 === 0) {
                 const blinky = this.ghosts.find(g => (g.ghost || g).id === 'blinky');
                 const blinkyPos = blinky ? { x: (blinky.ghost || blinky).x, y: (blinky.ghost || blinky).y } : null;
-                const pacmanCore = this.pacman.pacman || this.pacman;
                 this.ghosts.forEach(g => {
                     const core = g.ghost || g;
                     core.tick();
                     if (!core.eaten) {
-                        core.move(this.gameMap, this.rows, this.cols, pacmanCore, blinkyPos);
+                        core.move(this.gameMap, this.rows, this.cols, pacCore, blinkyPos);
                     }
                 });
             }
+
+            const wasOver = this.gameOver;
             this._checkGhostCollision();
+            if (this.gameOver && !wasOver) this.events.died = true;
+
+            // Detect ghost-eaten events
+            this.ghosts.forEach((g, i) => {
+                if (frightenedBefore[i] && (g.ghost || g).eaten) this.events.ghostEaten = true;
+            });
+
+            // Compute frightened ratio for looping sound
+            const maxTimer = this.ghosts.reduce((m, g) => Math.max(m, (g.ghost || g).frightTimer || 0), 0);
+            if (maxTimer > 0) this.events.frightenedRatio = maxTimer / 30;
         }
     }
 

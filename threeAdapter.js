@@ -435,23 +435,22 @@ class ThreeGameAdapter {
     }
 
     gameLoop(direction) {
-        const eng      = this.gameEngine;
-        const pacCore  = eng.pacman.pacman || eng.pacman;
-        const scorePre = pacCore.score;
-        const wasOver  = eng.gameOver;
-        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
-
+        const eng = this.gameEngine;
         eng.gameLoop(direction);
+        const ev  = eng.events;
 
-        // Sounds
-        if (pacCore.score > scorePre) {
-            if (pacCore.score - scorePre >= 50) sfx.super();
-            else                                 sfx.pellet();
+        if (ev.superPelletEaten) sfx.super();
+        else if (ev.pelletEaten) sfx.pellet();
+        if (ev.ghostEaten)       sfx.eatGhost();
+        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
+        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
+        else                             sfx.stopFrightened();
+
+        const bar = document.getElementById('power-bar');
+        if (bar) {
+            bar.style.width = (ev.frightenedRatio * 100) + '%';
+            bar.classList.toggle('urgent', ev.frightenedRatio > 0 && ev.frightenedRatio < 0.3);
         }
-        eng.ghosts.forEach((g, i) => {
-            if (frightenedBefore[i] && (g.ghost || g).eaten) sfx.eatGhost();
-        });
-        if (eng.gameOver && !wasOver) sfx.die();
 
         // Animate super pellets (pulse scale)
         for (const pa of this._pelletAdapters) pa.animateTick();

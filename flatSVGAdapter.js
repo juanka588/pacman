@@ -245,22 +245,22 @@ class SVGGameAdapter {
     }
 
     gameLoop(direction) {
-        const eng     = this.gameEngine;
-        const pac     = eng.pacman.pacman || eng.pacman;
-        const scorePre = pac.score;
-        const wasOver  = eng.gameOver;
-        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
-
+        const eng = this.gameEngine;
         eng.gameLoop(direction);
+        const ev  = eng.events;
 
-        if (pac.score > scorePre) {
-            if (pac.score - scorePre >= 50) sfx.super();
-            else                             sfx.pellet();
+        if (ev.superPelletEaten) sfx.super();
+        else if (ev.pelletEaten) sfx.pellet();
+        if (ev.ghostEaten)       sfx.eatGhost();
+        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
+        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
+        else                             sfx.stopFrightened();
+
+        const bar = document.getElementById('power-bar');
+        if (bar) {
+            bar.style.width = (ev.frightenedRatio * 100) + '%';
+            bar.classList.toggle('urgent', ev.frightenedRatio > 0 && ev.frightenedRatio < 0.3);
         }
-        eng.ghosts.forEach((g, i) => {
-            if (frightenedBefore[i] && (g.ghost || g).eaten) sfx.eatGhost();
-        });
-        if (eng.gameOver && !wasOver) sfx.die();
 
         for (let i = 0; i < eng.rows; i++)
             for (let j = 0; j < eng.cols; j++)
@@ -270,6 +270,7 @@ class SVGGameAdapter {
         for (const ghost of eng.ghosts) ghost.draw();
 
         const scoreEl = document.getElementById('score');
+        const pac = eng.pacman.pacman || eng.pacman;
         if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
 
         if (eng.gameOver && !this._gameOverShown) {
@@ -360,7 +361,7 @@ class SVGGhostAdapter {
         if (!body) return;
         if (this.ghost.mode === 'frightened') {
             this.geometryRef.setAttributeNS(null, 'class', 'ghost-container ghost-' + this.ghost.id + ' ghost-frightened');
-            body.setAttributeNS(null, 'fill', '#0000CC');
+            body.removeAttributeNS(null, 'fill');
         } else {
             this.geometryRef.setAttributeNS(null, 'class', 'ghost-container ghost-' + this.ghost.id);
             body.setAttributeNS(null, 'fill', SVG_GHOST_COLORS[this.ghost.id] || '#CCCCCC');

@@ -99,6 +99,7 @@
                 <canvas id="game-screen"></canvas>
                 <div id="game-over-overlay"><span>GAME OVER</span></div>
             </div>
+            <div class="power-bar-wrap"><div class="power-bar-fill" id="power-bar"></div></div>
             <div class="camera-controls">
                 <button id="btn-overhead" class="active">Top Down</button>
                 <button id="btn-tpp">3rd Person</button>
@@ -139,7 +140,7 @@
     });
     document.getElementById('btn-tpp').addEventListener('click', function() {
         this.classList.add('active');
-        document.getElementById('btn-isometric').classList.remove('active');
+        document.getElementById('btn-overhead').classList.remove('active');
     });
 </script>
 </body>

@@ -261,29 +261,25 @@ class GhostAdapter {
 
 class P5GameAdapter {
     constructor(gameEngine) {
-        this.gameEngine   = gameEngine;
-        this._gameOverSnd = false;
+        this.gameEngine = gameEngine;
     }
 
     gameLoop(direction) {
-        const eng      = this.gameEngine;
-        const pac      = eng.pacman.pacman || eng.pacman;
-        const scorePre = pac.score;
-        const wasOver  = eng.gameOver;
-        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
-
+        const eng = this.gameEngine;
         eng.gameLoop(direction);
+        const ev  = eng.events;
 
-        if (pac.score > scorePre) {
-            if (pac.score - scorePre >= 50) sfx.super();
-            else                             sfx.pellet();
-        }
-        eng.ghosts.forEach((g, i) => {
-            if (frightenedBefore[i] && (g.ghost || g).eaten) sfx.eatGhost();
-        });
-        if (eng.gameOver && !wasOver && !this._gameOverSnd) {
-            this._gameOverSnd = true;
-            sfx.die();
+        if (ev.superPelletEaten) sfx.super();
+        else if (ev.pelletEaten) sfx.pellet();
+        if (ev.ghostEaten)       sfx.eatGhost();
+        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
+        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
+        else                             sfx.stopFrightened();
+
+        const bar = document.getElementById('power-bar');
+        if (bar) {
+            bar.style.width = (ev.frightenedRatio * 100) + '%';
+            bar.classList.toggle('urgent', ev.frightenedRatio > 0 && ev.frightenedRatio < 0.3);
         }
 
         for (let i = 0; i < eng.rows; i++)

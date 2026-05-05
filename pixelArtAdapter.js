@@ -289,10 +289,10 @@ class PixelArtGhostAdapter {
         const cx = x + r;
         const cy = y + r;
 
-        // Pick color
+        // Pick color — flicker blue/white when frightened
         let bodyColor;
         if (this.ghost.mode === 'frightened') {
-            bodyColor = '#0000CC';
+            bodyColor = (Date.now() % 300 < 150) ? '#0000CC' : '#aaaaff';
         } else {
             bodyColor = GHOST_COLORS[this.ghost.id] || '#CCCCCC';
         }
@@ -356,31 +356,21 @@ class PixelArtGameAdapter {
         const eng     = this.gameEngine;
         const pacCore = eng.pacman.pacman || eng.pacman;
 
-        const scoreBefore = pacCore.score;
-        const wasOver     = eng.gameOver;
-
-        // Track which ghosts were frightened before the tick
-        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
-
         eng.gameLoop(direction);
+        const ev = eng.events;
 
-        // Sound: pellet eaten
-        if (pacCore.score > scoreBefore) {
-            if (pacCore.ateSuper === false && pacCore.score - scoreBefore >= 50) {
-                sfx.super();
-            } else {
-                sfx.pellet();
-            }
+        if (ev.superPelletEaten) sfx.super();
+        else if (ev.pelletEaten) sfx.pellet();
+        if (ev.ghostEaten)       sfx.eatGhost();
+        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
+        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
+        else                             sfx.stopFrightened();
+
+        const bar = document.getElementById('power-bar');
+        if (bar) {
+            bar.style.width = (ev.frightenedRatio * 100) + '%';
+            bar.classList.toggle('urgent', ev.frightenedRatio > 0 && ev.frightenedRatio < 0.3);
         }
-
-        // Sound: ghost eaten (ghost just became eaten)
-        eng.ghosts.forEach((g, i) => {
-            const core = g.ghost || g;
-            if (frightenedBefore[i] && core.eaten) sfx.eatGhost();
-        });
-
-        // Sound: game over
-        if (eng.gameOver && !wasOver) sfx.die();
 
         // Draw all cells (only draws once, tracked internally)
         for (let i = 0; i < eng.rows; i++) {
