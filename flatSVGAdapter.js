@@ -9,7 +9,7 @@ let svgElement;
 let width = 400;
 let height = 400;
 const PI = Math.PI;
-const FRAME_RATE = 100;
+const FRAME_RATE = 150;
 
 function setup() {
     svgElement = document.querySelector("#game-screen");
@@ -114,6 +114,7 @@ class PelletAdapter {
         this.size = size;
         this.hasBeenCreated = false;
         this.geometryRef = undefined;
+        this.isSuper = pellet.isSuper || false;
     }
 
     score() {
@@ -125,14 +126,15 @@ class PelletAdapter {
     }
 
     draw() {
-        if (this.hasBeenCreated) {
-            return;
+        if (this.hasBeenCreated) return;
+        const offset  = this.size / 2;
+        const xCenter = this.pellet.x * this.size + offset;
+        const yCenter = this.pellet.y * this.size + offset;
+        if (this.isSuper) {
+            this.geometryRef = createCircle(xCenter, yCenter, this.size * 0.42, 'super-pellet');
+        } else {
+            this.geometryRef = createCircle(xCenter, yCenter, this.size / 3, 'pellet');
         }
-        let offset = this.size / 2;
-        let xCenter = this.pellet.x * this.size;
-        let yCenter = this.pellet.y * this.size;
-        let size = this.size / 3;
-        this.geometryRef = createCircle(xCenter + offset, yCenter + offset, size, "pellet");
         svgElement.appendChild(this.geometryRef);
         this.hasBeenCreated = true;
     }
@@ -235,28 +237,70 @@ class CellAdapter {
     }
 }
 
+// ─── Sound engine ─────────────────────────────────────────────────────────────
+const _sfxSVG = (() => {
+    let ctx = null;
+    function _ctx() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        return ctx;
+    }
+    function tone(freq, type, duration, volume, delay) {
+        try {
+            const ac   = _ctx();
+            const osc  = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = type || 'square';
+            osc.frequency.value = freq;
+            const t = ac.currentTime + (delay || 0);
+            gain.gain.setValueAtTime(volume || 0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.start(t); osc.stop(t + duration);
+        } catch (e) {}
+    }
+    return {
+        pellet()  { tone(440, 'square',   0.06, 0.10); },
+        super()   { tone(660, 'sawtooth', 0.10, 0.20); tone(880, 'sawtooth', 0.10, 0.20, 0.07); },
+        die()     { tone(220, 'sawtooth', 0.14, 0.28); tone(150, 'sawtooth', 0.18, 0.28, 0.12); tone(90, 'sawtooth', 0.22, 0.28, 0.24); },
+        eatGhost(){ tone(330, 'sine', 0.05, 0.28); tone(660, 'sine', 0.05, 0.28, 0.06); tone(990, 'sine', 0.08, 0.28, 0.12); },
+    };
+})();
+
 class SVGGameAdapter {
     constructor(gameEngine) {
         this.gameEngine = gameEngine;
+        this._gameOverShown = false;
     }
 
     gameLoop(direction) {
-        this.gameEngine.gameLoop(direction);
-        for (let i = 0; i < this.gameEngine.rows; i++) {
-            for (let j = 0; j < this.gameEngine.cols; j++) {
-                this.gameEngine.gameMap[i][j].draw();
-            }
+        const eng     = this.gameEngine;
+        const pac     = eng.pacman.pacman || eng.pacman;
+        const scorePre = pac.score;
+        const wasOver  = eng.gameOver;
+        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
+
+        eng.gameLoop(direction);
+
+        if (pac.score > scorePre) {
+            if (pac.score - scorePre >= 50) _sfxSVG.super();
+            else                             _sfxSVG.pellet();
         }
-        this.gameEngine.pacman.draw();
-        for (const ghost of this.gameEngine.ghosts) {
-            ghost.draw();
-        }
+        eng.ghosts.forEach((g, i) => {
+            if (frightenedBefore[i] && (g.ghost || g).eaten) _sfxSVG.eatGhost();
+        });
+        if (eng.gameOver && !wasOver) _sfxSVG.die();
+
+        for (let i = 0; i < eng.rows; i++)
+            for (let j = 0; j < eng.cols; j++)
+                eng.gameMap[i][j].draw();
+
+        eng.pacman.draw();
+        for (const ghost of eng.ghosts) ghost.draw();
+
         const scoreEl = document.getElementById('score');
-        if (scoreEl) {
-            const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
-        }
-        if (this.gameEngine.gameOver && !this._gameOverShown) {
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
+
+        if (eng.gameOver && !this._gameOverShown) {
             this._gameOverShown = true;
             const txt = document.createElementNS(svgNS, 'text');
             txt.setAttributeNS(null, 'x', svgElement.getAttribute('width') / 2);
@@ -356,8 +400,9 @@ function pacmanCreator(x, y) {
     return new PacmanAdapter(new Pacman(x, y), size);
 }
 
-function pelletCreator(x, y, points) {
-    return new PelletAdapter(new Pellet(x, y, points), size);
+function pelletCreator(x, y, points, isSuper) {
+    const pellet = isSuper ? new SuperPellet(x, y) : new Pellet(x, y, points);
+    return new PelletAdapter(pellet, size);
 }
 
 function cellCreator(x, y, pellet) {

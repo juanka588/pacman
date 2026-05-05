@@ -181,6 +181,17 @@ kbd {
     filter: drop-shadow(0 0 2px #FF8844);
 }
 
+.super-pellet {
+    fill: #ffffff;
+    filter: drop-shadow(0 0 5px #ffffff) drop-shadow(0 0 10px #aaddff);
+    animation: super-pulse 0.7s ease-in-out infinite alternate;
+}
+
+@keyframes super-pulse {
+    from { opacity: 0.7; r: 6; }
+    to   { opacity: 1.0; r: 8; }
+}
+
 /* ── Ghost eyes ───────────────────────────────────────────────────────────── */
 .ghost-eye-white {
     fill: #ffffff;

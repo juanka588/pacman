@@ -1,7 +1,43 @@
 /* Three.js 3D adapter for Pac-Man
- * Requires three.js r163 loaded from CDN before this file.
+ * Requires three.js r150 (UMD) loaded before this file.
  * Coordinate mapping: game cell.x → world X, game cell.y → world Z, Y = up.
  */
+
+// ─── Sound engine ─────────────────────────────────────────────────────────────
+const _sfx3 = (() => {
+    let ctx = null;
+    function _ctx() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        return ctx;
+    }
+    function tone(freq, type, duration, volume, delay) {
+        try {
+            const ac   = _ctx();
+            const osc  = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            osc.type = type || 'square';
+            osc.frequency.value = freq;
+            const t = ac.currentTime + (delay || 0);
+            gain.gain.setValueAtTime(volume || 0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.start(t);
+            osc.stop(t + duration);
+        } catch (e) {}
+    }
+    return {
+        pellet()  { tone(440, 'square',   0.06, 0.10); },
+        super()   { tone(660, 'sawtooth', 0.10, 0.20);
+                    tone(880, 'sawtooth', 0.10, 0.20, 0.07); },
+        die()     { tone(220, 'sawtooth', 0.14, 0.28);
+                    tone(150, 'sawtooth', 0.18, 0.28, 0.12);
+                    tone(90,  'sawtooth', 0.22, 0.28, 0.24); },
+        eatGhost(){ tone(330, 'sine', 0.05, 0.28);
+                    tone(660, 'sine', 0.05, 0.28, 0.06);
+                    tone(990, 'sine', 0.08, 0.28, 0.12); },
+    };
+})();
 
 const CELL_SIZE = 2;   // world units per tile
 const WALL_H    = 1.4; // wall height
@@ -77,10 +113,12 @@ class ThreeCellAdapter {
 
 class ThreePelletAdapter {
     constructor(pellet, scene) {
-        this.pellet = pellet;
-        this.scene  = scene;
-        this._mesh  = null;
-        this._built = false;
+        this.pellet  = pellet;
+        this.scene   = scene;
+        this._mesh   = null;
+        this._built  = false;
+        this.isSuper = pellet.isSuper || false;
+        this._tick   = 0;
     }
 
     score() {
@@ -100,25 +138,44 @@ class ThreePelletAdapter {
         const cx = this.pellet.x * C + C / 2;
         const cz = this.pellet.y * C + C / 2;
 
-        const geo      = new THREE.SphereGeometry(0.2, 8, 6);
-        const mat      = new THREE.MeshBasicMaterial({ color: 0xFFB897 });
-        this._mesh     = new THREE.Mesh(geo, mat);
-        this._mesh.position.set(cx, 0.25, cz);
+        if (this.isSuper) {
+            const geo = new THREE.SphereGeometry(0.45, 12, 10);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            this._mesh = new THREE.Mesh(geo, mat);
+            this._mesh.position.set(cx, 0.45, cz);
+        } else {
+            const geo = new THREE.SphereGeometry(0.18, 8, 6);
+            const mat = new THREE.MeshBasicMaterial({ color: 0xFFB897 });
+            this._mesh = new THREE.Mesh(geo, mat);
+            this._mesh.position.set(cx, 0.22, cz);
+        }
         this.scene.add(this._mesh);
+    }
+
+    // Called each frame so super pellets can pulse
+    animateTick() {
+        if (!this._mesh || !this.isSuper) return;
+        this._tick++;
+        const s = 1 + Math.sin(this._tick * 0.25) * 0.2;
+        this._mesh.scale.setScalar(s);
     }
 }
 
 // ─── ThreePacmanAdapter ───────────────────────────────────────────────────────
+// Pac-Man is built from two SphereGeometry halves (top jaw / bottom jaw)
+// on pivot sub-groups so the mouth opens and closes by rotating each jaw.
 
 class ThreePacmanAdapter {
     constructor(pacman, scene) {
-        this.pacman       = pacman;
-        this.scene        = scene;
-        this._mesh        = null;
-        this._mouthDir    = 1;
-        this._mouthAngle  = 0;
-        this._lastDirX    = 1; // used for 3PP camera when idle
-        this._lastDirZ    = 0;
+        this.pacman      = pacman;
+        this.scene       = scene;
+        this._group      = null;  // root group — positioned & yaw-rotated
+        this._topJaw     = null;  // pivots open upward   (+X rotation)
+        this._botJaw     = null;  // pivots open downward (-X rotation)
+        this._mouthAngle = 0.35;  // current jaw opening angle (radians)
+        this._mouthDir   = 1;
+        this._lastDirX   = 1;
+        this._lastDirZ   = 0;
     }
 
     move(direction, gameMap) { this.pacman.move(direction, gameMap); }
@@ -130,39 +187,68 @@ class ThreePacmanAdapter {
     get direction() { return this.pacman.direction; }
 
     build() {
-        if (this._mesh) return;
-        const geo  = new THREE.SphereGeometry(0.5, 16, 12);
-        const mat  = new THREE.MeshPhongMaterial({ color: 0xFFD700, shininess: 90 });
-        this._mesh = new THREE.Mesh(geo, mat);
-        this._mesh.castShadow = true;
-        this.scene.add(this._mesh);
+        if (this._group) return;
+
+        const R   = 0.5;
+        const mat = new THREE.MeshPhongMaterial({ color: 0xFFD700, shininess: 100, side: THREE.FrontSide });
+
+        // Each jaw: a hemisphere. SphereGeometry(r, wSeg, hSeg, phiStart, phiLen, thetaStart, thetaLen)
+        // Top jaw: upper hemisphere (thetaStart=0, thetaLen=PI/2)
+        // Bot jaw: lower hemisphere (thetaStart=PI/2, thetaLen=PI/2)
+        // Both face the +Z direction (mouth opening faces forward in local space)
+        const topGeo = new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, 0,       Math.PI / 2);
+        const botGeo = new THREE.SphereGeometry(R, 24, 12, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2);
+
+        this._group  = new THREE.Group();
+
+        // Top jaw pivot group — the mesh sits at origin, pivot rotates about X
+        this._topJaw = new THREE.Group();
+        const topMesh = new THREE.Mesh(topGeo, mat);
+        topMesh.castShadow = true;
+        this._topJaw.add(topMesh);
+
+        // Bottom jaw pivot group
+        this._botJaw = new THREE.Group();
+        const botMesh = new THREE.Mesh(botGeo, mat);
+        botMesh.castShadow = true;
+        this._botJaw.add(botMesh);
+
+        // Eye: small dark sphere on top-front
+        const eyeGeo = new THREE.SphereGeometry(0.09, 8, 8);
+        const eyeMat = new THREE.MeshBasicMaterial({ color: 0x111111 });
+        const eye    = new THREE.Mesh(eyeGeo, eyeMat);
+        // Position relative to group: up a bit, forward, slightly left
+        eye.position.set(-0.18, 0.3, -0.35);
+
+        this._group.add(this._topJaw, this._botJaw, eye);
+        this.scene.add(this._group);
     }
 
     update() {
-        if (!this._mesh) this.build();
+        if (!this._group) this.build();
 
         const C  = CELL_SIZE;
         const tx = this.pacman.x * C + C / 2;
         const tz = this.pacman.y * C + C / 2;
-        this._mesh.position.set(tx, 0.5, tz);
+        this._group.position.set(tx, 0.5, tz);
 
-        // Squash/stretch chomp animation
-        this._mouthAngle += 0.18 * this._mouthDir;
+        // Animate mouth open/close
+        this._mouthAngle += 0.14 * this._mouthDir;
         if (this._mouthAngle > 0.55) this._mouthDir = -1;
-        if (this._mouthAngle < 0.0)  this._mouthDir =  1;
-        const s = 1 + this._mouthAngle * 0.18;
-        this._mesh.scale.set(s, 1 / s, s);
+        if (this._mouthAngle < 0.02) this._mouthDir =  1;
+        this._topJaw.rotation.x = -this._mouthAngle; // upper jaw tilts up
+        this._botJaw.rotation.x =  this._mouthAngle; // lower jaw tilts down
 
-        // Rotate to face movement direction
+        // Yaw to face movement direction
         const dir = this.pacman.direction;
         if (dir.x !== 0 || dir.y !== 0) {
             this._lastDirX = dir.x;
             this._lastDirZ = dir.y;
-            this._mesh.rotation.y = Math.atan2(dir.x, dir.y);
+            // atan2(dx, dz) gives the angle from +Z axis, matching our mesh orientation
+            this._group.rotation.y = Math.atan2(dir.x, dir.y);
         }
     }
 
-    // Returns the world-space position and last facing direction for camera use
     worldPos() {
         const C = CELL_SIZE;
         return {
@@ -333,7 +419,8 @@ class ThreeGameAdapter {
             }
         }
 
-        // Pellets
+        // Pellets — keep a list of 3D adapters so we can animate super pellets
+        this._pelletAdapters = [];
         for (let i = 0; i < eng.rows; i++) {
             for (let j = 0; j < eng.cols; j++) {
                 const cellAdapter = eng.gameMap[i][j];
@@ -342,6 +429,7 @@ class ThreeGameAdapter {
                     const pelletAdapter = new ThreePelletAdapter(rawPellet, this._scene);
                     pelletAdapter.build();
                     cellAdapter.cell.pellet = pelletAdapter;
+                    this._pelletAdapters.push(pelletAdapter);
                 }
             }
         }
@@ -382,7 +470,26 @@ class ThreeGameAdapter {
     }
 
     gameLoop(direction) {
-        this.gameEngine.gameLoop(direction);
+        const eng      = this.gameEngine;
+        const pacCore  = eng.pacman.pacman || eng.pacman;
+        const scorePre = pacCore.score;
+        const wasOver  = eng.gameOver;
+        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
+
+        eng.gameLoop(direction);
+
+        // Sounds
+        if (pacCore.score > scorePre) {
+            if (pacCore.score - scorePre >= 50) _sfx3.super();
+            else                                 _sfx3.pellet();
+        }
+        eng.ghosts.forEach((g, i) => {
+            if (frightenedBefore[i] && (g.ghost || g).eaten) _sfx3.eatGhost();
+        });
+        if (eng.gameOver && !wasOver) _sfx3.die();
+
+        // Animate super pellets (pulse scale)
+        for (const pa of this._pelletAdapters) pa.animateTick();
 
         this._pacAdapter.update();
         for (const ga of this._ghostAdapters) ga.update();
@@ -432,10 +539,10 @@ class ThreeGameAdapter {
 function setup() {
     const canvas = document.getElementById('game-screen');
 
-    const pacmanCreatorFn = (x, y)      => new Pacman(x, y);
-    const pelletCreatorFn = (x, y, p)   => new Pellet(x, y, p);
-    const cellCreatorFn   = (x, y, pel) => new Cell(x, y, pel);
-    const ghostCreatorFn  = (x, y, id)  => new Ghost(x, y, id);
+    const pacmanCreatorFn = (x, y)             => new Pacman(x, y);
+    const pelletCreatorFn = (x, y, p, isSuper) => isSuper ? new SuperPellet(x, y) : new Pellet(x, y, p);
+    const cellCreatorFn   = (x, y, pel)        => new Cell(x, y, pel);
+    const ghostCreatorFn  = (x, y, id)         => new Ghost(x, y, id);
 
     const ge = new GameEngine(20, 20, pacmanCreatorFn, pelletCreatorFn, cellCreatorFn, ghostCreatorFn);
     window.threeGameAdapter = new ThreeGameAdapter(ge, canvas, 'overhead');
@@ -455,5 +562,5 @@ function draw() {
     if (window.threeGameAdapter) {
         window.threeGameAdapter.gameLoop(window.controls.getDirection());
     }
-    setTimeout(draw, 100);
+    setTimeout(draw, 150);
 }

@@ -102,10 +102,18 @@ function _redrawCell(ctx, gameMap, gx, gy, tile) {
     ctx.stroke();
     // Redraw pellet if still present
     if (cellAdapter._pelletAdapter && cellAdapter.hasPellet()) {
-        const cx = gx * tile + tile / 2;
-        const cy = gy * tile + tile / 2;
-        ctx.fillStyle = '#FFB897';
-        ctx.fillRect(Math.floor(cx) - 2, Math.floor(cy) - 2, 4, 4);
+        const pa = cellAdapter._pelletAdapter;
+        const cx = Math.floor(gx * tile + tile / 2);
+        const cy = Math.floor(gy * tile + tile / 2);
+        if (pa.isSuper) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            ctx.fillStyle = '#FFB897';
+            ctx.fillRect(cx - 2, cy - 2, 4, 4);
+        }
     }
 }
 
@@ -117,30 +125,41 @@ class PixelArtPelletAdapter {
         this.tile = tile;
         this.hasBeenEaten = false;
         this._drawn = false;
+        this.isSuper = pellet.isSuper || false;
     }
 
     score() {
         return this.pellet.score();
     }
 
-    draw(ctx) {
-        if (this.hasBeenEaten || this._drawn) return;
+    draw(ctx, tick) {
+        if (this.hasBeenEaten) return;
 
-        const cx = this.pellet.x * this.tile + this.tile / 2;
-        const cy = this.pellet.y * this.tile + this.tile / 2;
+        const cx = Math.floor(this.pellet.x * this.tile + this.tile / 2);
+        const cy = Math.floor(this.pellet.y * this.tile + this.tile / 2);
 
-        // 4×4 orange rect centered in cell
-        ctx.fillStyle = '#FFB897';
-        ctx.fillRect(Math.floor(cx) - 2, Math.floor(cy) - 2, 4, 4);
-        this._drawn = true;
+        if (this.isSuper) {
+            // Pulsing white circle for super pellet — redrawn every tick
+            const r = 4 + Math.round(Math.sin((tick || 0) * 0.4) * 1.5);
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.fill();
+        } else {
+            if (this._drawn) return;
+            ctx.fillStyle = '#FFB897';
+            ctx.fillRect(cx - 2, cy - 2, 4, 4);
+            this._drawn = true;
+        }
     }
 
     erase(ctx) {
         if (this.hasBeenEaten) return;
-        const cx = this.pellet.x * this.tile + this.tile / 2;
-        const cy = this.pellet.y * this.tile + this.tile / 2;
+        const cx = Math.floor(this.pellet.x * this.tile + this.tile / 2);
+        const cy = Math.floor(this.pellet.y * this.tile + this.tile / 2);
+        const r = 7; // large enough to clear the pulsing super pellet
         ctx.fillStyle = '#000000';
-        ctx.fillRect(Math.floor(cx) - 2, Math.floor(cy) - 2, 4, 4);
+        ctx.fillRect(cx - r, cy - r, r * 2, r * 2);
         this.hasBeenEaten = true;
     }
 }
@@ -332,49 +351,67 @@ class PixelArtGameAdapter {
         }
     }
 
-    gameLoop(direction) {
-        const ctx = this.ctx;
+    gameLoop(direction, tick) {
+        const ctx     = this.ctx;
+        const eng     = this.gameEngine;
+        const pacCore = eng.pacman.pacman || eng.pacman;
 
-        this.gameEngine.gameLoop(direction);
+        const scoreBefore = pacCore.score;
+        const wasOver     = eng.gameOver;
 
-        // Draw all cells (only draws once, tracked internally)
-        for (let i = 0; i < this.gameEngine.rows; i++) {
-            for (let j = 0; j < this.gameEngine.cols; j++) {
-                this.gameEngine.gameMap[i][j].draw(ctx);
+        // Track which ghosts were frightened before the tick
+        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
+
+        eng.gameLoop(direction);
+
+        // Sound: pellet eaten
+        if (pacCore.score > scoreBefore) {
+            if (pacCore.ateSuper === false && pacCore.score - scoreBefore >= 50) {
+                _sfx.super();
+            } else {
+                _sfx.pellet();
             }
         }
 
-        // Draw pellets — if cell no longer has pellet but adapter wasn't eaten yet, erase it
-        for (let i = 0; i < this.gameEngine.rows; i++) {
-            for (let j = 0; j < this.gameEngine.cols; j++) {
-                const cellAdapter = this.gameEngine.gameMap[i][j];
-                if (!cellAdapter._pelletAdapter) continue;
+        // Sound: ghost eaten (ghost just became eaten)
+        eng.ghosts.forEach((g, i) => {
+            const core = g.ghost || g;
+            if (frightenedBefore[i] && core.eaten) _sfx.eatGhost();
+        });
 
+        // Sound: game over
+        if (eng.gameOver && !wasOver) _sfx.die();
+
+        // Draw all cells (only draws once, tracked internally)
+        for (let i = 0; i < eng.rows; i++) {
+            for (let j = 0; j < eng.cols; j++) {
+                eng.gameMap[i][j].draw(ctx);
+            }
+        }
+
+        // Draw pellets
+        for (let i = 0; i < eng.rows; i++) {
+            for (let j = 0; j < eng.cols; j++) {
+                const cellAdapter = eng.gameMap[i][j];
+                if (!cellAdapter._pelletAdapter) continue;
                 const pa = cellAdapter._pelletAdapter;
                 if (!cellAdapter.hasPellet() && !pa.hasBeenEaten) {
-                    // Pellet was just eaten — erase it
                     pa.erase(ctx);
                 } else if (cellAdapter.hasPellet()) {
-                    pa.draw(ctx);
+                    pa.draw(ctx, tick);
                 }
             }
         }
 
-        // Draw pac-man and ghosts (pass gameMap so they can redraw vacated cells)
-        this.gameEngine.pacman.draw(ctx, this.gameEngine.gameMap);
-        for (const ghost of this.gameEngine.ghosts) {
-            ghost.draw(ctx, this.gameEngine.gameMap);
+        eng.pacman.draw(ctx, eng.gameMap);
+        for (const ghost of eng.ghosts) {
+            ghost.draw(ctx, eng.gameMap);
         }
 
-        // Update score display
         const scoreEl = document.getElementById('score');
-        if (scoreEl) {
-            const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
-        }
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pacCore.score)}`;
 
-        // Game over overlay
-        if (this.gameEngine.gameOver && !this._gameOverShown) {
+        if (eng.gameOver && !this._gameOverShown) {
             this._gameOverShown = true;
             ctx.fillStyle = 'rgba(0,0,0,0.6)';
             ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -390,25 +427,58 @@ class PixelArtGameAdapter {
     }
 }
 
+// ─── Sound engine (Web Audio API, no files needed) ────────────────────────────
+
+const _sfx = (() => {
+    let ctx = null;
+    function _ctx() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        return ctx;
+    }
+    function tone(freq, type, duration, volume, startDelay) {
+        try {
+            const ac  = _ctx();
+            const osc = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain);
+            gain.connect(ac.destination);
+            osc.type = type || 'square';
+            osc.frequency.value = freq;
+            const t = ac.currentTime + (startDelay || 0);
+            gain.gain.setValueAtTime(volume || 0.18, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.start(t);
+            osc.stop(t + duration);
+        } catch (e) {}
+    }
+    return {
+        pellet()  { tone(440, 'square',   0.06, 0.12); },
+        super()   { tone(660, 'sawtooth', 0.08, 0.22);
+                    tone(880, 'sawtooth', 0.08, 0.22, 0.06); },
+        die()     { tone(220, 'sawtooth', 0.12, 0.3);
+                    tone(150, 'sawtooth', 0.18, 0.3, 0.10);
+                    tone(90,  'sawtooth', 0.22, 0.3, 0.22); },
+        eatGhost(){ tone(330, 'sine',     0.05, 0.3);
+                    tone(660, 'sine',     0.05, 0.3, 0.05);
+                    tone(990, 'sine',     0.08, 0.3, 0.10); },
+    };
+})();
+
 // ─── Factory functions ────────────────────────────────────────────────────────
 
 function pacmanCreator(x, y) {
     return new PixelArtPacmanAdapter(new Pacman(x, y), TILE);
 }
 
-function pelletCreator(x, y, points) {
-    return new PixelArtPelletAdapter(new Pellet(x, y, points), TILE);
+function pelletCreator(x, y, points, isSuper) {
+    const pellet = isSuper ? new SuperPellet(x, y) : new Pellet(x, y, points);
+    return new PixelArtPelletAdapter(pellet, TILE);
 }
 
 function cellCreator(x, y, pellet) {
-    // pellet here is a PixelArtPelletAdapter (or undefined)
-    // We create the inner Cell with the adapter as the pellet object.
-    // Cell.removePellet() calls pellet.score() which PixelArtPelletAdapter delegates correctly.
-    const innerCell = new Cell(x, y, pellet);
+    const innerCell   = new Cell(x, y, pellet);
     const cellAdapter = new PixelArtCellAdapter(innerCell, TILE);
-    if (pellet) {
-        cellAdapter._pelletAdapter = pellet;
-    }
+    if (pellet) cellAdapter._pelletAdapter = pellet;
     return cellAdapter;
 }
 
@@ -428,7 +498,9 @@ function setup() {
     draw();
 }
 
+let _drawTick = 0;
 function draw() {
-    pixelArtGameAdapter.gameLoop(controls.getDirection());
-    setTimeout(draw, 100);
+    _drawTick++;
+    pixelArtGameAdapter.gameLoop(controls.getDirection(), _drawTick);
+    setTimeout(draw, 150);
 }

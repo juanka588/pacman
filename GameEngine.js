@@ -9,12 +9,18 @@ class GameEngine {
         this._respawnTicks = 30; // ticks before an eaten ghost respawns
 
         let pelletProb = 0.2;
+        // Super pellet positions: near each corner (inset 1 cell from edge)
+        const superPositions = new Set([
+            `1,1`, `1,${cols-2}`, `${rows-2},1`, `${rows-2},${cols-2}`,
+        ]);
         this.gameMap = [];
         for (let i = 0; i < rows; i++) {
             this.gameMap[i] = [];
             for (let j = 0; j < cols; j++) {
                 let pellet;
-                if (randomInRange(0, 1) <= pelletProb) {
+                if (superPositions.has(`${i},${j}`)) {
+                    pellet = pelletCreator(i, j, 50, true); // isSuper flag
+                } else if (randomInRange(0, 1) <= pelletProb) {
                     pellet = pelletCreator(i, j, randomInRange(5, 10));
                 }
                 this.gameMap[i][j] = cellCreator(i, j, pellet);
@@ -64,6 +70,13 @@ class GameEngine {
 
         this._checkWinCondition();
         if (this.gameWon) return;
+
+        // Super pellet: frighten all ghosts for 30 ticks
+        const pacCore = this.pacman.pacman || this.pacman;
+        if (pacCore.ateSuper) {
+            this.ghosts.forEach(g => { (g.ghost || g).frighten(30); });
+            pacCore.ateSuper = false;
+        }
 
         if (this.ghosts.length > 0) {
             this._updateGhostMode();

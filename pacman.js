@@ -16,8 +16,13 @@ class Pacman {
         this.y = this.y + direction.y;
         this.x = this.x + direction.x;
         let newCell = gameMap[this.x][this.y];
+        this.ateSuper = false;
         if (newCell.hasPellet()) {
+            const pellet = newCell.pellet;
+            // Check isSuper before removing (adapter may wrap the pellet)
+            const isSuper = (pellet && (pellet.isSuper || (pellet.pellet && pellet.pellet.isSuper)));
             this.score = this.score + newCell.removePellet();
+            if (isSuper) this.ateSuper = true;
         }
     }
 
@@ -39,10 +44,18 @@ class Pellet {
         this.x = x;
         this.y = y;
         this.points = points;
+        this.isSuper = false;
     }
 
     score() {
         return this.points;
+    }
+}
+
+class SuperPellet extends Pellet {
+    constructor(x, y) {
+        super(x, y, 50);
+        this.isSuper = true;
     }
 }
 

@@ -8,7 +8,7 @@ let controls;
 function setup() {
     const cnv = createCanvas(400, 400);
     cnv.parent('game-canvas-container');
-    frameRate(10);
+    frameRate(6);
     rows = width / size;
     cols = width / size;
     gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
@@ -85,8 +85,9 @@ class PacmanAdapter {
 
 class PelletAdapter {
     constructor(pellet, size) {
-        this.pellet = pellet;
-        this.size = size;
+        this.pellet  = pellet;
+        this.size    = size;
+        this.isSuper = pellet.isSuper || false;
     }
 
     score() {
@@ -95,12 +96,18 @@ class PelletAdapter {
 
     draw() {
         noStroke();
-        fill(255, 184, 151);
-        let offset = this.size / 2;
-        let xCenter = this.pellet.x * this.size;
-        let yCenter = this.pellet.y * this.size;
-        let size = this.size / 4;
-        circle(xCenter + offset, yCenter + offset, size);
+        const offset  = this.size / 2;
+        const xCenter = this.pellet.x * this.size + offset;
+        const yCenter = this.pellet.y * this.size + offset;
+        if (this.isSuper) {
+            // Pulsing white super pellet
+            const r = 5 + Math.sin(frameCount * 0.3) * 1.5;
+            fill(255, 255, 255);
+            circle(xCenter, yCenter, r * 2);
+        } else {
+            fill(255, 184, 151);
+            circle(xCenter, yCenter, this.size / 4);
+        }
     }
 }
 
@@ -251,28 +258,73 @@ class GhostAdapter {
     }
 }
 
+// ─── Sound engine ─────────────────────────────────────────────────────────────
+const _sfxP5 = (() => {
+    let ctx = null;
+    function _ctx() {
+        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
+        return ctx;
+    }
+    function tone(freq, type, duration, volume, delay) {
+        try {
+            const ac   = _ctx();
+            const osc  = ac.createOscillator();
+            const gain = ac.createGain();
+            osc.connect(gain); gain.connect(ac.destination);
+            osc.type = type || 'square';
+            osc.frequency.value = freq;
+            const t = ac.currentTime + (delay || 0);
+            gain.gain.setValueAtTime(volume || 0.15, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+            osc.start(t); osc.stop(t + duration);
+        } catch (e) {}
+    }
+    return {
+        pellet()  { tone(440, 'square',   0.06, 0.10); },
+        super()   { tone(660, 'sawtooth', 0.10, 0.20); tone(880, 'sawtooth', 0.10, 0.20, 0.07); },
+        die()     { tone(220, 'sawtooth', 0.14, 0.28); tone(150, 'sawtooth', 0.18, 0.28, 0.12); tone(90, 'sawtooth', 0.22, 0.28, 0.24); },
+        eatGhost(){ tone(330, 'sine', 0.05, 0.28); tone(660, 'sine', 0.05, 0.28, 0.06); tone(990, 'sine', 0.08, 0.28, 0.12); },
+    };
+})();
+
 class P5GameAdapter {
     constructor(gameEngine) {
-        this.gameEngine = gameEngine;
+        this.gameEngine   = gameEngine;
+        this._gameOverSnd = false;
     }
 
     gameLoop(direction) {
-        this.gameEngine.gameLoop(direction);
-        for (let i = 0; i < this.gameEngine.rows; i++) {
-            for (let j = 0; j < this.gameEngine.cols; j++) {
-                this.gameEngine.gameMap[i][j].draw();
-            }
+        const eng      = this.gameEngine;
+        const pac      = eng.pacman.pacman || eng.pacman;
+        const scorePre = pac.score;
+        const wasOver  = eng.gameOver;
+        const frightenedBefore = eng.ghosts.map(g => (g.ghost || g).mode === 'frightened');
+
+        eng.gameLoop(direction);
+
+        if (pac.score > scorePre) {
+            if (pac.score - scorePre >= 50) _sfxP5.super();
+            else                             _sfxP5.pellet();
         }
-        this.gameEngine.pacman.draw();
-        for (const ghost of this.gameEngine.ghosts) {
-            ghost.draw();
+        eng.ghosts.forEach((g, i) => {
+            if (frightenedBefore[i] && (g.ghost || g).eaten) _sfxP5.eatGhost();
+        });
+        if (eng.gameOver && !wasOver && !this._gameOverSnd) {
+            this._gameOverSnd = true;
+            _sfxP5.die();
         }
+
+        for (let i = 0; i < eng.rows; i++)
+            for (let j = 0; j < eng.cols; j++)
+                eng.gameMap[i][j].draw();
+
+        eng.pacman.draw();
+        for (const ghost of eng.ghosts) ghost.draw();
+
         const scoreEl = document.getElementById('score');
-        if (scoreEl) {
-            const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
-        }
-        if (this.gameEngine.gameOver) {
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
+
+        if (eng.gameOver) {
             fill(255, 0, 0);
             noStroke();
             textSize(32);
@@ -286,8 +338,9 @@ function pacmanCreator(x, y) {
     return new PacmanAdapter(new Pacman(x, y), size);
 }
 
-function pelletCreator(x, y, points) {
-    return new PelletAdapter(new Pellet(x, y, points), size);
+function pelletCreator(x, y, points, isSuper) {
+    const pellet = isSuper ? new SuperPellet(x, y) : new Pellet(x, y, points);
+    return new PelletAdapter(pellet, size);
 }
 
 function cellCreator(x, y, pellet) {
