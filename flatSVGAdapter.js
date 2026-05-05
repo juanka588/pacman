@@ -26,6 +26,7 @@ function setup() {
     rows = width / size;
     cols = width / size;
     gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
+    window.gameEngine = gameEngine;
     setTimeout(() => {
         draw();
     }, frameRate);

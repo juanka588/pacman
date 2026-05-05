@@ -18,6 +18,7 @@ function setup() {
     rows = width / size;
     cols = width / size;
     gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
+    window.gameEngine = gameEngine;
 }
 
 function draw() {
