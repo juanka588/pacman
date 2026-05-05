@@ -247,6 +247,7 @@ const _sfxSVG = (() => {
     function tone(freq, type, duration, volume, delay) {
         try {
             const ac   = _ctx();
+            ac.resume();
             const osc  = ac.createOscillator();
             const gain = ac.createGain();
             osc.connect(gain); gain.connect(ac.destination);

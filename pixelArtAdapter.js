@@ -438,6 +438,7 @@ const _sfx = (() => {
     function tone(freq, type, duration, volume, startDelay) {
         try {
             const ac  = _ctx();
+            ac.resume();
             const osc = ac.createOscillator();
             const gain = ac.createGain();
             osc.connect(gain);
