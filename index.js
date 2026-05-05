@@ -290,6 +290,7 @@ class P5GameAdapter {
         for (const ghost of eng.ghosts) ghost.draw();
 
         const scoreEl = document.getElementById('score');
+        const pac = eng.pacman.pacman || eng.pacman;
         if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
 
         if (eng.gameOver) {
