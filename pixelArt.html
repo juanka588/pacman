@@ -4,6 +4,67 @@
     <meta charset="UTF-8">
     <title>Pac-Man — Pixel Art</title>
     <link rel="stylesheet" href="pacman-style.css">
+    <style>
+        /* Isometric canvas container — needs overflow:visible so the tilted
+           canvas is not clipped by its own layout box */
+        .iso-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .iso-viewport {
+            /* Fixed size large enough to contain the diamond bounding box
+               of a 320×320 canvas at rotateX(60) rotateZ(45) × scale(1.5).
+               Diamond width ≈ 320√2 × 1.5 ≈ 678px
+               Diamond height ≈ 320√2 × sin(30°) × 1.5 ≈ 340px          */
+            width: 680px;
+            height: 360px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: visible;
+        }
+
+        /* Flat (default) — normal display */
+        #game-screen {
+            image-rendering: pixelated;
+            transition: transform 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+                        filter  0.45s ease;
+        }
+
+        /* Isometric state — applied via JS */
+        #game-screen.isometric {
+            transform: rotateX(60deg) rotateZ(45deg) scale(1.5);
+            filter: drop-shadow(-6px 12px 18px rgba(26, 120, 255, 0.55))
+                    drop-shadow( 6px 12px 18px rgba(26, 120, 255, 0.25));
+        }
+
+        .view-controls {
+            display: flex;
+            gap: 8px;
+        }
+
+        .view-controls button {
+            background: #000;
+            color: #1a78ff;
+            border: 1px solid #1a78ff;
+            padding: 4px 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 0 0 4px #1a78ff66;
+        }
+
+        .view-controls button:hover,
+        .view-controls button.active {
+            background: #1a78ff;
+            color: #000;
+        }
+    </style>
     <script src="pacman.js"></script>
     <script src="GameEngine.js"></script>
     <script src="controls/KeyboardControlAdapter.js"></script>
@@ -18,7 +79,6 @@
         <span id="score">SCORE: 0</span>
     </header>
     <div class="game-layout">
-        <!-- left panel with same controls info as other pages -->
         <aside class="controls-panel controls-panel--left">
             <h3>CONTROLS</h3>
             <ul>
@@ -27,13 +87,28 @@
                 <li><kbd>←</kbd> Move Left</li>
                 <li><kbd>→</kbd> Move Right</li>
             </ul>
+            <h3>VIEW</h3>
+            <ul>
+                <li>Flat: classic top-down</li>
+                <li>Iso: tilted 3D look</li>
+            </ul>
             <h3>TIPS</h3>
             <ul>
                 <li>Eat all pellets to win</li>
                 <li>Avoid ghosts!</li>
             </ul>
         </aside>
-        <canvas id="game-screen" width="320" height="320" tabindex="0"></canvas>
+
+        <div class="iso-container">
+            <div class="iso-viewport">
+                <canvas id="game-screen" width="320" height="320" tabindex="0"></canvas>
+            </div>
+            <div class="view-controls">
+                <button id="btn-flat" class="active">Flat</button>
+                <button id="btn-iso">Isometric</button>
+            </div>
+        </div>
+
         <aside class="controls-panel controls-panel--right">
             <h3>GHOSTS</h3>
             <ul class="ghost-legend">
@@ -60,6 +135,22 @@
     let pixelArtGameAdapter;
     let controls;
     setup();
+
+    const canvas  = document.getElementById('game-screen');
+    const btnFlat = document.getElementById('btn-flat');
+    const btnIso  = document.getElementById('btn-iso');
+
+    btnFlat.addEventListener('click', () => {
+        canvas.classList.remove('isometric');
+        btnFlat.classList.add('active');
+        btnIso.classList.remove('active');
+    });
+
+    btnIso.addEventListener('click', () => {
+        canvas.classList.add('isometric');
+        btnIso.classList.add('active');
+        btnFlat.classList.remove('active');
+    });
 </script>
 </body>
 </html>

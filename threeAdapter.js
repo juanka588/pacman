@@ -304,7 +304,7 @@ class ThreeGameAdapter {
         this._buildScene();
 
         // Camera + initial position
-        this._camera = new THREE.PerspectiveCamera(55, W / H, 0.1, 300);
+        this._camera = new THREE.PerspectiveCamera(70, W / H, 0.1, 300);
         this.setCameraMode(this._cameraMode);
     }
 
@@ -366,9 +366,10 @@ class ThreeGameAdapter {
 
         if (mode === 'overhead') {
             // True top-down: camera directly above center, looking straight down.
-            // Tilt 1° off vertical so Three.js "up" direction is unambiguous.
+            // +0.01 Z offset disambiguates "up" so world +X maps to screen right
+            // and world +Z maps to screen down — matching every other adapter.
             const span = this._gridSpan;
-            this._camera.position.set(this._gridCX, span * 1.1, this._gridCZ - 0.01);
+            this._camera.position.set(this._gridCX, span * 1.1, this._gridCZ + 0.01);
             this._camera.lookAt(this._gridCX, 0, this._gridCZ);
         }
         // 'tpp' is updated every frame — no initial set needed
@@ -386,9 +387,9 @@ class ThreeGameAdapter {
 
         // Third-person camera: behind + above Pac-Man
         if (this._cameraMode === 'tpp') {
-            const CAM_BACK = 7;   // units behind Pac-Man
-            const CAM_UP   = 4;   // units above
-            const LOOK_FWD = 4;   // units ahead of Pac-Man to look at
+            const CAM_BACK = 16;  // units behind Pac-Man
+            const CAM_UP   = 10;  // units above
+            const LOOK_FWD = 6;   // units ahead of Pac-Man to look at
 
             // Smoothly interpolate toward the ideal position so the camera
             // doesn't snap when Pac-Man turns
