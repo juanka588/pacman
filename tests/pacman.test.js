@@ -198,3 +198,69 @@ describe('MazeGenerator border seal (bug 0.3)', () => {
         }
     });
 });
+
+// ─── MazeGenerator connectivity (Stage 2) ────────────────────────────────────
+
+describe('MazeGenerator connectivity (Randomized Prims + loop-carving)', () => {
+    const ROWS = 10, COLS = 10;
+
+    function buildAndGenerate(rows, cols) {
+        const grid = makeGrid(rows, cols);
+        new MazeGenerator(grid).generate();
+        return grid;
+    }
+
+    // BFS through passable walls to count reachable cells from [0][0]
+    function bfsReachable(grid, rows, cols) {
+        const visited = Array.from({ length: rows }, () => new Array(cols).fill(false));
+        const queue = [{ x: 0, y: 0 }];
+        visited[0][0] = true;
+        let count = 1;
+        const moves = [
+            { x: -1, y: 0, wallCheck: c => c.hasLeftWall()   },
+            { x: 1,  y: 0, wallCheck: c => c.hasRightWall()  },
+            { x: 0,  y: -1, wallCheck: c => c.hasTopWall()   },
+            { x: 0,  y: 1,  wallCheck: c => c.hasBottomWall() },
+        ];
+        while (queue.length > 0) {
+            const { x, y } = queue.shift();
+            for (const { x: dx, y: dy, wallCheck } of moves) {
+                const nx = x + dx, ny = y + dy;
+                if (nx < 0 || nx >= rows || ny < 0 || ny >= cols) continue;
+                if (visited[nx][ny]) continue;
+                if (wallCheck(grid[x][y])) continue;
+                visited[nx][ny] = true;
+                count++;
+                queue.push({ x: nx, y: ny });
+            }
+        }
+        return count;
+    }
+
+    test('every cell is reachable from [0][0] (no isolated areas)', () => {
+        const grid = buildAndGenerate(ROWS, COLS);
+        expect(bfsReachable(grid, ROWS, COLS)).toBe(ROWS * COLS);
+    });
+
+    test('loop-carving creates at least some cells with multiple exit directions', () => {
+        const grid = buildAndGenerate(ROWS, COLS);
+        const dirs = [
+            { dx: -1, dy: 0, wallCheck: c => c.hasLeftWall()   },
+            { dx: 1,  dy: 0, wallCheck: c => c.hasRightWall()  },
+            { dx: 0,  dy: -1, wallCheck: c => c.hasTopWall()   },
+            { dx: 0,  dy: 1,  wallCheck: c => c.hasBottomWall() },
+        ];
+        let multiExitCount = 0;
+        for (let i = 0; i < ROWS; i++) {
+            for (let j = 0; j < COLS; j++) {
+                const exits = dirs.filter(({ dx, dy, wallCheck }) => {
+                    const nx = i + dx, ny = j + dy;
+                    return nx >= 0 && nx < ROWS && ny >= 0 && ny < COLS && !wallCheck(grid[i][j]);
+                }).length;
+                if (exits >= 2) multiExitCount++;
+            }
+        }
+        // On a 10×10 grid with 35% loop-carving there will always be junction cells
+        expect(multiExitCount).toBeGreaterThan(0);
+    });
+});

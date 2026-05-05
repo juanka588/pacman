@@ -120,55 +120,97 @@ class Cell {
 class MazeGenerator {
     constructor(gameMap) {
         this.gameMap = gameMap;
-        this.randomWallProb = 0.4;
-    }
-
-    createRandomWall(x, y) {
-        let cell = this.gameMap[x][y];
-        let wallType = Math.floor(randomInRange(0, 4));
-        switch (wallType) {
-            case 0: // LEFT
-                cell.createLeftWall();
-                if (x > 0) {
-                    let leftCell = this.gameMap[x - 1][y];
-                    leftCell.createRightWall();
-                }
-                break;
-            case 1: // Top
-                cell.createTopWall();
-                if (y > 0) {
-                    let topCell = this.gameMap[x][y - 1];
-                    topCell.createBottomWall();
-                }
-                break;
-            case 2: // Right
-                cell.createRightWall();
-                if (x < this.gameMap.length - 1) {
-                    let rightCell = this.gameMap[x + 1][y];
-                    rightCell.createLeftWall();
-                }
-                break;
-            case 3: // Bottom
-                cell.createBottomWall();
-                if (y < this.gameMap[x].length - 1) {
-                    let bottomCell = this.gameMap[x][y + 1];
-                    bottomCell.createTopWall();
-                }
-                break;
-        }
+        this.loopCarvingProb = 0.35;
     }
 
     generate() {
-        for (let i = 0; i < this.gameMap.length; i++) {
-            for (let j = 0; j < this.gameMap[i].length; j++) {
-                if (randomInRange(0, 1) <= this.randomWallProb) {
-                    this.createRandomWall(i, j);
-                }
-            }
-        }
+        this._initAllWalls();
+        this._randomizedPrims();
+        this._carveLoops();
         this._sealBorders();
     }
 
+    // Step 1: start with every cell fully walled
+    _initAllWalls() {
+        for (let i = 0; i < this.gameMap.length; i++) {
+            for (let j = 0; j < this.gameMap[i].length; j++) {
+                const c = this.gameMap[i][j];
+                c.createLeftWall();
+                c.createTopWall();
+                c.createRightWall();
+                c.createBottomWall();
+            }
+        }
+    }
+
+    // Step 2: Randomized Prim's — builds a spanning tree guaranteeing full connectivity
+    _randomizedPrims() {
+        const rows = this.gameMap.length;
+        const cols = this.gameMap[0].length;
+        const visited = [];
+        for (let i = 0; i < rows; i++) {
+            visited[i] = new Array(cols).fill(false);
+        }
+
+        visited[0][0] = true;
+        // frontier: each entry is {ax, ay, bx, by} where a is visited, b is not yet
+        const frontier = this._neighbors(0, 0, visited, rows, cols);
+
+        while (frontier.length > 0) {
+            const idx = Math.floor(randomInRange(0, frontier.length));
+            const { ax, ay, bx, by } = frontier.splice(idx, 1)[0];
+
+            if (visited[bx][by]) continue;
+
+            // Remove the shared wall between a and b
+            this._removeWallBetween(ax, ay, bx, by);
+            visited[bx][by] = true;
+
+            const newNeighbors = this._neighbors(bx, by, visited, rows, cols);
+            for (const n of newNeighbors) frontier.push(n);
+        }
+    }
+
+    _neighbors(x, y, visited, rows, cols) {
+        const result = [];
+        if (x > 0        && !visited[x - 1][y]) result.push({ ax: x, ay: y, bx: x - 1, by: y });
+        if (x < rows - 1 && !visited[x + 1][y]) result.push({ ax: x, ay: y, bx: x + 1, by: y });
+        if (y > 0        && !visited[x][y - 1]) result.push({ ax: x, ay: y, bx: x, by: y - 1 });
+        if (y < cols - 1 && !visited[x][y + 1]) result.push({ ax: x, ay: y, bx: x, by: y + 1 });
+        return result;
+    }
+
+    _removeWallBetween(ax, ay, bx, by) {
+        const a = this.gameMap[ax][ay];
+        const b = this.gameMap[bx][by];
+        if (bx === ax - 1) { a.walls[0] = false; b.walls[2] = false; } // a→left, b→right
+        if (bx === ax + 1) { a.walls[2] = false; b.walls[0] = false; } // a→right, b→left
+        if (by === ay - 1) { a.walls[1] = false; b.walls[3] = false; } // a→top, b→bottom
+        if (by === ay + 1) { a.walls[3] = false; b.walls[1] = false; } // a→bottom, b→top
+    }
+
+    // Step 3: punch open random interior walls to create multiple paths (Pac-Man open feel)
+    _carveLoops() {
+        const rows = this.gameMap.length;
+        const cols = this.gameMap[0].length;
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (randomInRange(0, 1) <= this.loopCarvingProb) {
+                    // pick a random interior wall direction and open it
+                    const dirs = [];
+                    if (i > 0)        dirs.push({ ax: i, ay: j, bx: i - 1, by: j });
+                    if (i < rows - 1) dirs.push({ ax: i, ay: j, bx: i + 1, by: j });
+                    if (j > 0)        dirs.push({ ax: i, ay: j, bx: i, by: j - 1 });
+                    if (j < cols - 1) dirs.push({ ax: i, ay: j, bx: i, by: j + 1 });
+                    if (dirs.length === 0) continue;
+                    const { ax, ay, bx, by } = dirs[Math.floor(randomInRange(0, dirs.length))];
+                    this._removeWallBetween(ax, ay, bx, by);
+                }
+            }
+        }
+    }
+
+    // Step 4: ensure outer border walls are always present
     _sealBorders() {
         const rows = this.gameMap.length;
         const cols = this.gameMap[0].length;
