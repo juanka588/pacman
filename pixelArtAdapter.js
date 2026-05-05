@@ -367,20 +367,20 @@ class PixelArtGameAdapter {
         // Sound: pellet eaten
         if (pacCore.score > scoreBefore) {
             if (pacCore.ateSuper === false && pacCore.score - scoreBefore >= 50) {
-                _sfx.super();
+                sfx.super();
             } else {
-                _sfx.pellet();
+                sfx.pellet();
             }
         }
 
         // Sound: ghost eaten (ghost just became eaten)
         eng.ghosts.forEach((g, i) => {
             const core = g.ghost || g;
-            if (frightenedBefore[i] && core.eaten) _sfx.eatGhost();
+            if (frightenedBefore[i] && core.eaten) sfx.eatGhost();
         });
 
         // Sound: game over
-        if (eng.gameOver && !wasOver) _sfx.die();
+        if (eng.gameOver && !wasOver) sfx.die();
 
         // Draw all cells (only draws once, tracked internally)
         for (let i = 0; i < eng.rows; i++) {
@@ -429,40 +429,6 @@ class PixelArtGameAdapter {
 
 // ─── Sound engine (Web Audio API, no files needed) ────────────────────────────
 
-const _sfx = (() => {
-    let ctx = null;
-    function _ctx() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        return ctx;
-    }
-    function tone(freq, type, duration, volume, startDelay) {
-        const ac = _ctx();
-        ac.resume().then(() => {
-            const osc  = ac.createOscillator();
-            const gain = ac.createGain();
-            osc.connect(gain);
-            gain.connect(ac.destination);
-            osc.type = type || 'square';
-            osc.frequency.value = freq;
-            const t = ac.currentTime + (startDelay || 0);
-            gain.gain.setValueAtTime(volume || 0.18, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-            osc.start(t);
-            osc.stop(t + duration);
-        });
-    }
-    return {
-        pellet()  { tone(440, 'square',   0.06, 0.12); },
-        super()   { tone(660, 'sawtooth', 0.08, 0.22);
-                    tone(880, 'sawtooth', 0.08, 0.22, 0.06); },
-        die()     { tone(220, 'sawtooth', 0.12, 0.3);
-                    tone(150, 'sawtooth', 0.18, 0.3, 0.10);
-                    tone(90,  'sawtooth', 0.22, 0.3, 0.22); },
-        eatGhost(){ tone(330, 'sine',     0.05, 0.3);
-                    tone(660, 'sine',     0.05, 0.3, 0.05);
-                    tone(990, 'sine',     0.08, 0.3, 0.10); },
-    };
-})();
 
 // ─── Factory functions ────────────────────────────────────────────────────────
 

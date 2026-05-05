@@ -3,41 +3,6 @@
  * Coordinate mapping: game cell.x → world X, game cell.y → world Z, Y = up.
  */
 
-// ─── Sound engine ─────────────────────────────────────────────────────────────
-const _sfx3 = (() => {
-    let ctx = null;
-    function _ctx() {
-        if (!ctx) ctx = new (window.AudioContext || window.webkitAudioContext)();
-        return ctx;
-    }
-    function tone(freq, type, duration, volume, delay) {
-        const ac = _ctx();
-        ac.resume().then(() => {
-            const osc  = ac.createOscillator();
-            const gain = ac.createGain();
-            osc.connect(gain);
-            gain.connect(ac.destination);
-            osc.type = type || 'square';
-            osc.frequency.value = freq;
-            const t = ac.currentTime + (delay || 0);
-            gain.gain.setValueAtTime(volume || 0.15, t);
-            gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
-            osc.start(t);
-            osc.stop(t + duration);
-        });
-    }
-    return {
-        pellet()  { tone(440, 'square',   0.06, 0.10); },
-        super()   { tone(660, 'sawtooth', 0.10, 0.20);
-                    tone(880, 'sawtooth', 0.10, 0.20, 0.07); },
-        die()     { tone(220, 'sawtooth', 0.14, 0.28);
-                    tone(150, 'sawtooth', 0.18, 0.28, 0.12);
-                    tone(90,  'sawtooth', 0.22, 0.28, 0.24); },
-        eatGhost(){ tone(330, 'sine', 0.05, 0.28);
-                    tone(660, 'sine', 0.05, 0.28, 0.06);
-                    tone(990, 'sine', 0.08, 0.28, 0.12); },
-    };
-})();
 
 const CELL_SIZE = 2;   // world units per tile
 const WALL_H    = 1.4; // wall height
@@ -480,13 +445,13 @@ class ThreeGameAdapter {
 
         // Sounds
         if (pacCore.score > scorePre) {
-            if (pacCore.score - scorePre >= 50) _sfx3.super();
-            else                                 _sfx3.pellet();
+            if (pacCore.score - scorePre >= 50) sfx.super();
+            else                                 sfx.pellet();
         }
         eng.ghosts.forEach((g, i) => {
-            if (frightenedBefore[i] && (g.ghost || g).eaten) _sfx3.eatGhost();
+            if (frightenedBefore[i] && (g.ghost || g).eaten) sfx.eatGhost();
         });
-        if (eng.gameOver && !wasOver) _sfx3.die();
+        if (eng.gameOver && !wasOver) sfx.die();
 
         // Animate super pellets (pulse scale)
         for (const pa of this._pelletAdapters) pa.animateTick();
