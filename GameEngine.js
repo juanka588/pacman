@@ -4,7 +4,9 @@ class GameEngine {
         this.cols = cols;
         this.pacman = pacmanCreator(rows / 2, cols / 2);
         this.gameOver = false;
+        this.gameWon = false;
         this._ghostTick = 0;
+        this._respawnTicks = 30; // ticks before an eaten ghost respawns
 
         let pelletProb = 0.2;
         this.gameMap = [];
@@ -36,6 +38,14 @@ class GameEngine {
             });
         }
 
+        // Count initial pellets so win is only possible if there were any
+        this._totalPellets = 0;
+        for (let i = 0; i < rows; i++) {
+            for (let j = 0; j < cols; j++) {
+                if (this.gameMap[i][j].hasPellet()) this._totalPellets++;
+            }
+        }
+
         // Mode schedule: alternating scatter/chase phases (in game ticks).
         // Ghosts start in scatter so players have a brief grace period.
         // At 10 fps: 30 ticks = 3 s scatter, 100 ticks = 10 s chase.
@@ -46,14 +56,20 @@ class GameEngine {
     }
 
     gameLoop(direction) {
-        if (this.gameOver) return;
+        if (this.gameOver || this.gameWon) return;
 
         if (this.pacman.canMove(direction, this.rows, this.cols)) {
             this.pacman.move(direction, this.gameMap);
         }
 
+        this._checkWinCondition();
+        if (this.gameWon) return;
+
         if (this.ghosts.length > 0) {
             this._updateGhostMode();
+
+            // Respawn countdown runs every tick so the timer is predictable
+            this.ghosts.forEach(g => { (g.ghost || g).respawnTick(); });
 
             // Ghosts move every other tick so Pac-Man feels faster
             this._ghostTick++;
@@ -64,7 +80,9 @@ class GameEngine {
                 this.ghosts.forEach(g => {
                     const core = g.ghost || g;
                     core.tick();
-                    core.move(this.gameMap, this.rows, this.cols, pacmanCore, blinkyPos);
+                    if (!core.eaten) {
+                        core.move(this.gameMap, this.rows, this.cols, pacmanCore, blinkyPos);
+                    }
                 });
             }
             this._checkGhostCollision();
@@ -87,15 +105,43 @@ class GameEngine {
     }
 
     _checkGhostCollision() {
-        const px = (this.pacman.pacman || this.pacman).x;
-        const py = (this.pacman.pacman || this.pacman).y;
+        const pacCore = this.pacman.pacman || this.pacman;
+        const px = pacCore.x;
+        const py = pacCore.y;
         for (const g of this.ghosts) {
             const core = g.ghost || g;
+            if (core.eaten) continue;
             if (core.x === px && core.y === py) {
-                this.gameOver = true;
-                return;
+                if (core.mode === 'frightened') {
+                    // Pac-Man eats the ghost
+                    const spawnCorners = [
+                        [0,              0             ],
+                        [this.rows - 1,  0             ],
+                        [0,              this.cols - 1 ],
+                        [this.rows - 1,  this.cols - 1 ],
+                    ];
+                    const ids = ['blinky', 'pinky', 'inky', 'clyde'];
+                    const idx = ids.indexOf(core.id);
+                    const [sx, sy] = spawnCorners[idx] || spawnCorners[0];
+                    core.eat(sx, sy, this._respawnTicks);
+                    pacCore.score += 200;
+                } else {
+                    this.gameOver = true;
+                    return;
+                }
             }
         }
+    }
+
+    _checkWinCondition() {
+        // Win only if at least one pellet existed when the game started
+        if (this._totalPellets === 0) return;
+        for (let i = 0; i < this.rows; i++) {
+            for (let j = 0; j < this.cols; j++) {
+                if (this.gameMap[i][j].hasPellet()) return;
+            }
+        }
+        this.gameWon = true;
     }
 }
 

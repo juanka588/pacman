@@ -258,6 +258,8 @@ class Ghost {
         this.mode = 'scatter';
         this._previousMode = 'scatter';
         this.frightTimer = 0;
+        this.eaten = false;
+        this._respawnCountdown = 0;
 
         // Fixed scatter-corner targets per ghost (classic Pac-Man corners)
         this._scatterTargets = {
@@ -364,12 +366,35 @@ class Ghost {
         this.frightTimer = ticks;
     }
 
+    // Called by GameEngine when Pac-Man lands on a frightened ghost.
+    eat(respawnX, respawnY, respawnTicks) {
+        this.eaten = true;
+        this.mode = 'eaten';
+        this._respawnX = respawnX;
+        this._respawnY = respawnY;
+        this._respawnCountdown = respawnTicks || 30;
+    }
+
     tick() {
         if (this.mode === 'frightened' && this.frightTimer > 0) {
             this.frightTimer--;
             if (this.frightTimer === 0) {
                 this.mode = this._previousMode;
             }
+        }
+    }
+
+    // Called by GameEngine each tick while ghost is eaten.
+    respawnTick() {
+        if (!this.eaten) return;
+        this._respawnCountdown--;
+        if (this._respawnCountdown <= 0) {
+            this.eaten = false;
+            this._respawnCountdown = 0;
+            this.x = this._respawnX;
+            this.y = this._respawnY;
+            this.mode = 'scatter';
+            this._previousMode = 'scatter';
         }
     }
 }
