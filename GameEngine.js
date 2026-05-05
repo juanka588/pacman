@@ -35,6 +35,14 @@ class GameEngine {
                 this.ghosts.push(ghostCreator(corners[i][0], corners[i][1], id));
             });
         }
+
+        // Mode schedule: alternating scatter/chase phases (in game ticks).
+        // Ghosts start in scatter so players have a brief grace period.
+        // At 10 fps: 30 ticks = 3 s scatter, 100 ticks = 10 s chase.
+        this._modeSchedule = [30, 100, 20, 100, 20, 100, 20];
+        this._modePhase = 0;      // index into _modeSchedule
+        this._modeTimer = 0;      // ticks elapsed in current phase
+        this._phaseIsScatter = true;
     }
 
     gameLoop(direction) {
@@ -45,6 +53,8 @@ class GameEngine {
         }
 
         if (this.ghosts.length > 0) {
+            this._updateGhostMode();
+
             // Ghosts move every other tick so Pac-Man feels faster
             this._ghostTick++;
             if (this._ghostTick % 2 === 0) {
@@ -58,6 +68,21 @@ class GameEngine {
                 });
             }
             this._checkGhostCollision();
+        }
+    }
+
+    _updateGhostMode() {
+        if (this._modePhase >= this._modeSchedule.length) return; // locked in chase forever
+        this._modeTimer++;
+        if (this._modeTimer >= this._modeSchedule[this._modePhase]) {
+            this._modeTimer = 0;
+            this._modePhase++;
+            this._phaseIsScatter = !this._phaseIsScatter;
+            const newMode = this._phaseIsScatter ? 'scatter' : 'chase';
+            this.ghosts.forEach(g => {
+                const core = g.ghost || g;
+                if (core.mode !== 'frightened') core.mode = newMode;
+            });
         }
     }
 

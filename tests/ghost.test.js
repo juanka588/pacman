@@ -172,3 +172,38 @@ describe('GameEngine ghost collision', () => {
         expect(eng.pacman.x).toBe(startX); // should not have moved
     });
 });
+
+// ─── Ghost mode schedule ──────────────────────────────────────────────────────
+
+describe('GameEngine ghost mode schedule', () => {
+    function stubPacman(x, y) { return new Pacman(x, y); }
+    function stubPellet(x, y, p) { return new Pellet(x, y, p); }
+    function stubCell(x, y, pellet) { return new Cell(x, y, pellet); }
+    function stubGhost(x, y, id) { return new Ghost(x, y, id); }
+
+    test('ghosts start in scatter mode', () => {
+        const eng = new GameEngine(10, 10, stubPacman, stubPellet, stubCell, stubGhost);
+        eng.ghosts.forEach(g => expect(g.mode).toBe('scatter'));
+    });
+
+    test('ghosts switch to chase mode after the first scatter phase', () => {
+        const eng = new GameEngine(10, 10, stubPacman, stubPellet, stubCell, stubGhost);
+        const scatterDuration = eng._modeSchedule[0];
+        for (let i = 0; i < scatterDuration; i++) {
+            eng.gameLoop({ x: 0, y: 0 });
+        }
+        eng.ghosts.forEach(g => expect(g.mode).toBe('chase'));
+    });
+
+    test('frightened ghosts are not overridden by the mode schedule', () => {
+        const eng = new GameEngine(10, 10, stubPacman, stubPellet, stubCell, stubGhost);
+        eng.ghosts[0].frighten(999);
+        const scatterDuration = eng._modeSchedule[0];
+        for (let i = 0; i < scatterDuration; i++) {
+            eng.gameLoop({ x: 0, y: 0 });
+        }
+        expect(eng.ghosts[0].mode).toBe('frightened');
+        // Other ghosts should have switched to chase
+        expect(eng.ghosts[1].mode).toBe('chase');
+    });
+});
