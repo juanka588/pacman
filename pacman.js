@@ -268,7 +268,8 @@ class Ghost {
         };
     }
 
-    // Returns all passable, in-bounds directions excluding the direct reverse
+    // Returns all passable, in-bounds directions.
+    // Prefers not to reverse, but allows it as a fallback in dead ends.
     availableDirections(gameMap, rows, cols) {
         const reverse = { x: -this.direction.x, y: -this.direction.y };
         const candidates = [
@@ -277,13 +278,15 @@ class Ghost {
             { x: 0,  y: 1  },
             { x: 0,  y: -1 },
         ];
-        return candidates.filter(d => {
-            if (d.x === reverse.x && d.y === reverse.y) return false;
+        const passable = candidates.filter(d => {
             const nx = this.x + d.x;
             const ny = this.y + d.y;
             if (nx < 0 || nx >= rows || ny < 0 || ny >= cols) return false;
             return !gameMap[this.x][this.y].hasWallsInDirection(d);
         });
+        // Exclude reverse unless it is the only way out (dead end)
+        const nonReverse = passable.filter(d => !(d.x === reverse.x && d.y === reverse.y));
+        return nonReverse.length > 0 ? nonReverse : passable;
     }
 
     // Target tile based on id and mode
