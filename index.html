@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Title</title>
+    <title>Pac-Man</title>
+    <link rel="stylesheet" href="pacman-style.css">
     <script src="pacman.js"></script>
     <script src="GameEngine.js"></script>
     <script src="controls/KeyboardControlAdapter.js"></script>
@@ -13,6 +14,52 @@
 </head>
 <body>
 
-<a href="flatSVG.html"> SVG Version</a>
+<div class="game-wrapper">
+    <header class="game-header">
+        <span class="game-title">PAC-MAN</span>
+        <span id="score">SCORE: 0</span>
+    </header>
+
+    <div class="game-layout">
+        <aside class="controls-panel controls-panel--left">
+            <h3>CONTROLS</h3>
+            <ul>
+                <li><kbd>↑</kbd> Move Up</li>
+                <li><kbd>↓</kbd> Move Down</li>
+                <li><kbd>←</kbd> Move Left</li>
+                <li><kbd>→</kbd> Move Right</li>
+            </ul>
+            <h3>TIPS</h3>
+            <ul>
+                <li>Eat all pellets to win</li>
+                <li>Avoid ghosts!</li>
+                <li>Power pellets make ghosts vulnerable</li>
+            </ul>
+        </aside>
+
+        <main id="game-canvas-container"></main>
+
+        <aside class="controls-panel controls-panel--right">
+            <h3>GHOSTS</h3>
+            <ul class="ghost-legend">
+                <li><span class="ghost-dot" style="background:#FF0000"></span> Blinky — chases directly</li>
+                <li><span class="ghost-dot" style="background:#FFB8FF"></span> Pinky — ambushes ahead</li>
+                <li><span class="ghost-dot" style="background:#00FFFF"></span> Inky — flanks via Blinky</li>
+                <li><span class="ghost-dot" style="background:#FFB852"></span> Clyde — retreats when close</li>
+            </ul>
+            <h3>MODES</h3>
+            <ul>
+                <li>🔵 Scatter — corners</li>
+                <li>🔴 Chase — hunt!</li>
+                <li>👻 Frightened — flee</li>
+            </ul>
+        </aside>
+    </div>
+
+    <footer class="game-footer">
+        <a href="flatSVG.html">SVG version</a>
+    </footer>
+</div>
+
 </body>
 </html>

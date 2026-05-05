@@ -6,7 +6,8 @@ let gameEngine;
 let controls;
 
 function setup() {
-    createCanvas(400, 400);
+    const cnv = createCanvas(400, 400);
+    cnv.parent('game-canvas-container');
     frameRate(10);
     rows = width / size;
     cols = width / size;
@@ -17,7 +18,7 @@ function setup() {
 }
 
 function draw() {
-    background(220);
+    background(0);
     gameEngine.gameLoop(controls.getDirection());
 }
 
@@ -72,11 +73,12 @@ class PacmanAdapter {
             sign = 1;
         }
         rotate(this.rotation);
-        fill(212, 205, 13);
+        noStroke();
+        fill(255, 215, 0);
         arc(0, 0, size, size, 0, 2 * PI * this.closingAngle);
 
         fill(0);
-        circle(sign * offset * 0.3, sign * offset * 0.5, size * 0.1);
+        circle(sign * offset * 0.3, sign * offset * 0.5, size * 0.12);
         pop();
     }
 }
@@ -92,11 +94,12 @@ class PelletAdapter {
     }
 
     draw() {
-        fill(255, this.pellet.points);
+        noStroke();
+        fill(255, 184, 151);
         let offset = this.size / 2;
         let xCenter = this.pellet.x * this.size;
         let yCenter = this.pellet.y * this.size;
-        let size = this.size / 3;
+        let size = this.size / 4;
         circle(xCenter + offset, yCenter + offset, size);
     }
 }
@@ -112,7 +115,7 @@ class CellAdapter {
     }
 
     removePellet() {
-        this.cell.removePellet();
+        return this.cell.removePellet();
     }
 
     hasWallsInDirection(direction) {
@@ -168,7 +171,8 @@ class CellAdapter {
     }
 
     draw() {
-        stroke(0);
+        strokeWeight(2.5);
+        stroke(26, 120, 255);
         let top = this.cell.y * this.size;
         let bottom = (this.cell.y + 1) * this.size;
         let left = this.cell.x * this.size;
@@ -186,11 +190,7 @@ class CellAdapter {
         if (this.hasBottomWall()) {
             line(left, bottom, right, bottom);
         }
-        if (this.cell.visited) {
-            noStroke();
-            fill(0, 0, 255, 80);
-            rect(left, top, this.size, this.size);
-        }
+        strokeWeight(1);
 
         if (this.cell.hasPellet()) {
             this.cell.pellet.draw();
@@ -219,29 +219,34 @@ class GhostAdapter {
         const r = this.size / 2;
         translate(xCenter, yCenter);
 
+        let bodyColor;
         if (g.mode === 'frightened') {
-            fill(0, 0, 200);
+            // flicker between blue and white based on millis
+            bodyColor = (millis() % 300 < 150) ? color(0, 0, 204) : color(255, 255, 255);
         } else {
             const [cr, cg, cb] = GHOST_COLORS[g.id] || [200, 200, 200];
-            fill(cr, cg, cb);
+            bodyColor = color(cr, cg, cb);
         }
+        fill(bodyColor);
         noStroke();
         // Body: semicircle top + rectangular bottom
         arc(0, 0, r * 2, r * 2, PI, 0);
         rect(-r, 0, r * 2, r);
-        // Wavy bottom — three bumps
-        const bumpR = r / 3;
+        // Wavy bottom — three bumps cut out with background colour
         fill(0);
+        const bumpR = r / 3;
         for (let b = -1; b <= 1; b++) {
             circle(b * bumpR * 2, r, bumpR);
         }
-        // Eyes
-        fill(255);
-        circle(-r * 0.35, -r * 0.1, r * 0.5);
-        circle( r * 0.35, -r * 0.1, r * 0.5);
-        fill(0, 0, 200);
-        circle(-r * 0.35, -r * 0.1, r * 0.25);
-        circle( r * 0.35, -r * 0.1, r * 0.25);
+        // Eyes (hidden when frightened)
+        if (g.mode !== 'frightened') {
+            fill(255);
+            circle(-r * 0.35, -r * 0.1, r * 0.5);
+            circle( r * 0.35, -r * 0.1, r * 0.5);
+            fill(0, 0, 180);
+            circle(-r * 0.35, -r * 0.1, r * 0.25);
+            circle( r * 0.35, -r * 0.1, r * 0.25);
+        }
         pop();
     }
 }
@@ -262,8 +267,14 @@ class P5GameAdapter {
         for (const ghost of this.gameEngine.ghosts) {
             ghost.draw();
         }
+        const scoreEl = document.getElementById('score');
+        if (scoreEl) {
+            const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
+            scoreEl.textContent = `SCORE: ${pac.score}`;
+        }
         if (this.gameEngine.gameOver) {
             fill(255, 0, 0);
+            noStroke();
             textSize(32);
             textAlign(CENTER, CENTER);
             text('GAME OVER', width / 2, height / 2);

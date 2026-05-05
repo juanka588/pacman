@@ -1,29 +1,205 @@
-.pacman-eye {
-    fill: black;
-}
-.pellet {
-    fill: red;
-}
-.wall {
-    stroke: black !important;
-}
-#game-screen {
-    background-color: lightgrey;
-}
-.pacman {
-    stroke: yellow;
-    stroke-width: 10;
-    fill: none;
-    animation: chomp 0.15s linear infinite alternate;
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    background: #000;
+    margin: 0;
+    padding: 16px 8px;
+    font-family: 'Courier New', monospace;
+    color: #1a78ff;
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    overflow-x: auto;
 }
 
-@keyframes chomp {
-    from {
-        stroke-dasharray: 157,100;
-        stroke-dashoffset: 0;
-    }
-    to {
-        stroke-dasharray: 126,100;
-        stroke-dashoffset: -15;
-    }
+/* ── Game wrapper ─────────────────────────────────────────────────────────── */
+.game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    width: 100%;
+    max-width: 800px;
+    min-width: 0;
 }
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+.game-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 4px 8px;
+    border-bottom: 1px solid #1a78ff;
+}
+
+.game-title {
+    color: #FFD700;
+    font-size: 28px;
+    font-weight: bold;
+    letter-spacing: 6px;
+    text-shadow: 0 0 10px #FFD700;
+}
+
+/* ── Layout row: panels + canvas ─────────────────────────────────────────── */
+.game-layout {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    justify-content: center;
+    width: 100%;
+}
+
+/* ── Game screen ─────────────────────────────────────────────────────────── */
+#game-screen {
+    background-color: #000000;
+    display: block;
+    outline: none;
+    border: 2px solid #1a78ff;
+    box-shadow: 0 0 16px #1a78ff44;
+    flex-shrink: 0;
+}
+
+#game-canvas-container canvas {
+    display: block;
+    border: 2px solid #1a78ff;
+    box-shadow: 0 0 16px #1a78ff44;
+}
+
+/* ── Side panels ─────────────────────────────────────────────────────────── */
+.controls-panel {
+    width: 160px;
+    flex-shrink: 0;
+    font-size: 12px;
+    line-height: 1.7;
+}
+
+.controls-panel h3 {
+    color: #FFD700;
+    font-size: 11px;
+    letter-spacing: 3px;
+    margin: 16px 0 6px;
+    border-bottom: 1px solid #1a78ff44;
+    padding-bottom: 4px;
+    text-transform: uppercase;
+}
+
+.controls-panel h3:first-child { margin-top: 0; }
+
+.controls-panel ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.controls-panel li {
+    margin-bottom: 4px;
+}
+
+kbd {
+    display: inline-block;
+    background: #111;
+    border: 1px solid #1a78ff;
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 12px;
+    color: #fff;
+    box-shadow: 0 0 4px #1a78ff66;
+}
+
+/* ── Ghost legend ─────────────────────────────────────────────────────────── */
+.ghost-legend li {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ghost-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────────────── */
+.game-footer {
+    width: 100%;
+    text-align: center;
+    padding-top: 8px;
+    border-top: 1px solid #1a78ff44;
+}
+
+.game-footer a, a {
+    color: #1a78ff;
+    text-decoration: none;
+    font-size: 13px;
+    letter-spacing: 1px;
+}
+
+.game-footer a:hover, a:hover {
+    color: #FFD700;
+    text-shadow: 0 0 6px #FFD700;
+}
+
+/* ── Score display ────────────────────────────────────────────────────────── */
+#score {
+    color: #FFD700;
+    font-size: 18px;
+    letter-spacing: 3px;
+    text-shadow: 0 0 8px #FFD70088;
+}
+
+/* ── Pac-Man ──────────────────────────────────────────────────────────────── */
+.pacman-body {
+    fill: #FFD700;
+}
+
+.pacman-eye {
+    fill: #000000;
+}
+
+/* ── Walls ────────────────────────────────────────────────────────────────── */
+.wall {
+    stroke: #1a78ff;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    filter: drop-shadow(0 0 3px #1a78ff);
+}
+
+/* ── Pellets ──────────────────────────────────────────────────────────────── */
+.pellet {
+    fill: #FFB897;
+    filter: drop-shadow(0 0 2px #FF8844);
+}
+
+/* ── Ghost eyes ───────────────────────────────────────────────────────────── */
+.ghost-eye-white {
+    fill: #ffffff;
+}
+
+.ghost-pupil {
+    fill: #0000aa;
+}
+
+/* ── Frightened ghost flicker ─────────────────────────────────────────────── */
+@keyframes frighten-flicker {
+    0%, 100% { fill: #0000CC; }
+    50%       { fill: #ffffff; }
+}
+
+.ghost-frightened .ghost-body {
+    animation: frighten-flicker 0.3s linear infinite;
+}
+
+/* ── Game Over overlay ────────────────────────────────────────────────────── */
+.game-over-text {
+    fill: #FF0000;
+    font-size: 32px;
+    font-family: monospace;
+    font-weight: bold;
+    filter: drop-shadow(0 0 6px #FF0000);
+}
+

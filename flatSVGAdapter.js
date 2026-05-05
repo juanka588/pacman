@@ -63,33 +63,58 @@ class PacmanAdapter {
     }
 
     draw() {
-        if (this.geometryRef) {
-            this.moveAndTransformRef();
-            return;
+        if (!this.geometryRef) {
+            this._create();
         }
-        let group = createGroup("pacman-container");
+        this._updateTransform();
+        this._updateMouth();
+    }
 
-        let xCenter = this.pacman.x * this.size;
-        let yCenter = this.pacman.y * this.size;
-        let offset = this.size / 2;
-        let size = this.size;
-        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation, this.mustMirror);
-        let body = createCircle(0, 0, size / 2, "pacman");
-        let eye = createCircle(offset * 0.3, -offset * 0.5, size * 0.1, "pacman-eye");
+    _create() {
+        const group = createGroup('pacman-container');
+        const r = this.size * 0.45;
+
+        const body = document.createElementNS(svgNS, 'path');
+        body.setAttributeNS(null, 'class', 'pacman-body');
+        body.setAttributeNS(null, 'fill', '#FFD700');
+
+        const eye = createCircle(r * 0.3, -r * 0.5, r * 0.15, 'pacman-eye');
 
         group.appendChild(body);
         group.appendChild(eye);
 
+        this._r = r;
+        this._bodyEl = body;
+        this._mouthAngle = 0.25; // radians, open angle (each side)
+        this._animDir = 1;
+
+        svgElement.appendChild(group);
         this.geometryRef = group;
-        svgElement.appendChild(this.geometryRef);
     }
 
-    moveAndTransformRef() {
-        let group = this.geometryRef;
-        let xCenter = this.pacman.x * this.size;
-        let yCenter = this.pacman.y * this.size;
-        let offset = this.size / 2;
-        translateAndRotate(group, xCenter + offset, yCenter + offset, this.rotation, this.mustMirror);
+    _updateMouth() {
+        // Animate mouth open/close
+        this._mouthAngle += 0.04 * this._animDir;
+        if (this._mouthAngle > 0.35) this._animDir = -1;
+        if (this._mouthAngle < 0.02) this._animDir = 1;
+
+        const r = this._r;
+        const a = this._mouthAngle;
+        const startX = Math.cos(a) * r;
+        const startY = Math.sin(a) * r;
+        const endX = Math.cos(-a) * r;
+        const endY = Math.sin(-a) * r;
+        // Pie slice from center, arc going the long way around
+        const d = `M 0 0 L ${startX} ${startY} A ${r} ${r} 0 1 0 ${endX} ${endY} Z`;
+        this._bodyEl.setAttributeNS(null, 'd', d);
+    }
+
+    _updateTransform() {
+        const xCenter = this.pacman.x * this.size + this.size / 2;
+        const yCenter = this.pacman.y * this.size + this.size / 2;
+        let transform = `translate(${xCenter},${yCenter}) rotate(${this.rotation})`;
+        if (this.mustMirror) transform += ' scale(-1,1)';
+        this.geometryRef.setAttributeNS(null, 'transform', transform);
     }
 }
 
@@ -135,7 +160,7 @@ class CellAdapter {
     }
 
     removePellet() {
-        this.cell.removePellet();
+        return this.cell.removePellet();
     }
 
     hasWallsInDirection(direction) {
@@ -236,6 +261,22 @@ class SVGGameAdapter {
         for (const ghost of this.gameEngine.ghosts) {
             ghost.draw();
         }
+        const scoreEl = document.getElementById('score');
+        if (scoreEl) {
+            const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
+            scoreEl.textContent = `SCORE: ${pac.score}`;
+        }
+        if (this.gameEngine.gameOver && !this._gameOverShown) {
+            this._gameOverShown = true;
+            const txt = document.createElementNS(svgNS, 'text');
+            txt.setAttributeNS(null, 'x', svgElement.getAttribute('width') / 2);
+            txt.setAttributeNS(null, 'y', svgElement.getAttribute('height') / 2);
+            txt.setAttributeNS(null, 'text-anchor', 'middle');
+            txt.setAttributeNS(null, 'dominant-baseline', 'middle');
+            txt.setAttributeNS(null, 'class', 'game-over-text');
+            txt.textContent = 'GAME OVER';
+            svgElement.appendChild(txt);
+        }
     }
 }
 
@@ -312,8 +353,10 @@ class SVGGhostAdapter {
         const body = this.geometryRef.querySelector('.ghost-body');
         if (!body) return;
         if (this.ghost.mode === 'frightened') {
+            this.geometryRef.setAttributeNS(null, 'class', 'ghost-container ghost-' + this.ghost.id + ' ghost-frightened');
             body.setAttributeNS(null, 'fill', '#0000CC');
         } else {
+            this.geometryRef.setAttributeNS(null, 'class', 'ghost-container ghost-' + this.ghost.id);
             body.setAttributeNS(null, 'fill', SVG_GHOST_COLORS[this.ghost.id] || '#CCCCCC');
         }
     }
@@ -359,8 +402,7 @@ function createLine(x1, y1, x2, y2, className) {
     myLine.setAttributeNS(null, "y1", y1);
     myLine.setAttributeNS(null, "x2", x2);
     myLine.setAttributeNS(null, "y2", y2);
-    myLine.setAttributeNS(null, "stroke", "green");
-    myLine.setAttributeNS(null, "className", className);
+    myLine.setAttributeNS(null, "class", className);
     return myLine;
 }
 

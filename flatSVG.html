@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>FlatSVG demo</title>
+    <title>Pac-Man — SVG</title>
     <script src="GameEngine.js"></script>
     <script src="pacman.js"></script>
     <script src="controls/KeyboardControlAdapter.js"></script>
@@ -13,17 +13,59 @@
 </head>
 <body>
 
-<svg id="game-screen"
-     xmlns="http://www.w3.org/2000/svg"
-     xmlns:xlink="http://www.w3.org/1999/xlink"
-     tabindex="0"
->
+<div class="game-wrapper">
+    <header class="game-header">
+        <span class="game-title">PAC-MAN</span>
+        <span id="score">SCORE: 0</span>
+    </header>
 
-</svg>
+    <div class="game-layout">
+        <aside class="controls-panel controls-panel--left">
+            <h3>CONTROLS</h3>
+            <ul>
+                <li><kbd>↑</kbd> Move Up</li>
+                <li><kbd>↓</kbd> Move Down</li>
+                <li><kbd>←</kbd> Move Left</li>
+                <li><kbd>→</kbd> Move Right</li>
+            </ul>
+            <h3>TIPS</h3>
+            <ul>
+                <li>Eat all pellets to win</li>
+                <li>Avoid ghosts!</li>
+                <li>Power pellets make ghosts vulnerable</li>
+            </ul>
+        </aside>
 
-<a href="index.html">2D P5.js version</a>
-</body>
+        <svg id="game-screen"
+             xmlns="http://www.w3.org/2000/svg"
+             xmlns:xlink="http://www.w3.org/1999/xlink"
+             tabindex="0"
+        ></svg>
+
+        <aside class="controls-panel controls-panel--right">
+            <h3>GHOSTS</h3>
+            <ul class="ghost-legend">
+                <li><span class="ghost-dot" style="background:#FF0000"></span> Blinky — chases directly</li>
+                <li><span class="ghost-dot" style="background:#FFB8FF"></span> Pinky — ambushes ahead</li>
+                <li><span class="ghost-dot" style="background:#00FFFF"></span> Inky — flanks via Blinky</li>
+                <li><span class="ghost-dot" style="background:#FFB852"></span> Clyde — retreats when close</li>
+            </ul>
+            <h3>MODES</h3>
+            <ul>
+                <li>🔵 Scatter — corners</li>
+                <li>🔴 Chase — hunt!</li>
+                <li>👻 Frightened — flee</li>
+            </ul>
+        </aside>
+    </div>
+
+    <footer class="game-footer">
+        <a href="index.html">2D P5.js version</a>
+    </footer>
+</div>
+
 <script>
     setup();
 </script>
+</body>
 </html>
