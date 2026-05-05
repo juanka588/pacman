@@ -11,7 +11,7 @@ function setup() {
     frameRate(6);
     rows = width / size;
     cols = width / size;
-    gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
+    gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator, sfxEventListener));
     window.gameEngine = gameEngine;
     controls = new KeyboardControlAdapter(document);
     window.controls = controls;
@@ -269,13 +269,6 @@ class P5GameAdapter {
         eng.gameLoop(direction);
         const ev  = eng.events;
 
-        if (ev.superPelletEaten) sfx.super();
-        else if (ev.pelletEaten) sfx.pellet();
-        if (ev.ghostEaten)       sfx.eatGhost();
-        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
-        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
-        else                             sfx.stopFrightened();
-
         const bar = document.getElementById('power-bar');
         if (bar) {
             bar.style.width = (ev.frightenedRatio * 100) + '%';
@@ -290,8 +283,7 @@ class P5GameAdapter {
         for (const ghost of eng.ghosts) ghost.draw();
 
         const scoreEl = document.getElementById('score');
-        const pac = eng.pacman.pacman || eng.pacman;
-        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(eng.score)}`;
 
         if (eng.gameOver) {
             fill(255, 0, 0);

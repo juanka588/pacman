@@ -17,7 +17,7 @@ function setup() {
     svgElement.setAttribute("height", height);
     rows = width / size;
     cols = width / size;
-    gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator));
+    gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator, sfxEventListener));
     window.gameEngine = gameEngine;
     controls = new KeyboardControlAdapter(document);
     window.controls = controls;
@@ -249,13 +249,6 @@ class SVGGameAdapter {
         eng.gameLoop(direction);
         const ev  = eng.events;
 
-        if (ev.superPelletEaten) sfx.super();
-        else if (ev.pelletEaten) sfx.pellet();
-        if (ev.ghostEaten)       sfx.eatGhost();
-        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
-        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
-        else                             sfx.stopFrightened();
-
         const bar = document.getElementById('power-bar');
         if (bar) {
             bar.style.width = (ev.frightenedRatio * 100) + '%';
@@ -270,8 +263,7 @@ class SVGGameAdapter {
         for (const ghost of eng.ghosts) ghost.draw();
 
         const scoreEl = document.getElementById('score');
-        const pac = eng.pacman.pacman || eng.pacman;
-        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(eng.score)}`;
 
         if (eng.gameOver && !this._gameOverShown) {
             this._gameOverShown = true;

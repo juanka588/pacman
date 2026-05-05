@@ -65,3 +65,14 @@ const sfx = (() => {
         },
     };
 })();
+
+// Event listener wired directly into GameEngine as the 7th constructor argument.
+// Handles all sound reactions so adapter gameLoops stay render-only.
+function sfxEventListener(ev) {
+    if (ev.superPelletEaten)        sfx.super();
+    else if (ev.pelletEaten)        sfx.pellet();
+    if (ev.ghostEaten)              sfx.eatGhost();
+    if (ev.died)                    { sfx.die(); sfx.stopFrightened(); }
+    else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
+    else                             sfx.stopFrightened();
+}

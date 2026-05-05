@@ -354,17 +354,8 @@ class PixelArtGameAdapter {
     gameLoop(direction, tick) {
         const ctx     = this.ctx;
         const eng     = this.gameEngine;
-        const pacCore = eng.pacman.pacman || eng.pacman;
-
         eng.gameLoop(direction);
         const ev = eng.events;
-
-        if (ev.superPelletEaten) sfx.super();
-        else if (ev.pelletEaten) sfx.pellet();
-        if (ev.ghostEaten)       sfx.eatGhost();
-        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
-        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
-        else                             sfx.stopFrightened();
 
         const bar = document.getElementById('power-bar');
         if (bar) {
@@ -399,7 +390,7 @@ class PixelArtGameAdapter {
         }
 
         const scoreEl = document.getElementById('score');
-        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(pacCore.score)}`;
+        if (scoreEl) scoreEl.textContent = `SCORE: ${Math.floor(eng.score)}`;
 
         if (eng.gameOver && !this._gameOverShown) {
             this._gameOverShown = true;
@@ -446,7 +437,7 @@ function ghostCreator(x, y, id) {
 
 function setup() {
     const canvas = document.getElementById('game-screen');
-    const ge = new GameEngine(20, 20, pacmanCreator, pelletCreator, cellCreator, ghostCreator);
+    const ge = new GameEngine(20, 20, pacmanCreator, pelletCreator, cellCreator, ghostCreator, sfxEventListener);
     pixelArtGameAdapter = new PixelArtGameAdapter(ge, canvas);
     window.gameEngine = pixelArtGameAdapter;
     controls = new KeyboardControlAdapter(document);

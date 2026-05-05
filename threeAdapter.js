@@ -439,13 +439,6 @@ class ThreeGameAdapter {
         eng.gameLoop(direction);
         const ev  = eng.events;
 
-        if (ev.superPelletEaten) sfx.super();
-        else if (ev.pelletEaten) sfx.pellet();
-        if (ev.ghostEaten)       sfx.eatGhost();
-        if (ev.died)             { sfx.die(); sfx.stopFrightened(); }
-        else if (ev.frightenedRatio > 0) sfx.startFrightened(ev.frightenedRatio);
-        else                             sfx.stopFrightened();
-
         const bar = document.getElementById('power-bar');
         if (bar) {
             bar.style.width = (ev.frightenedRatio * 100) + '%';
@@ -485,7 +478,7 @@ class ThreeGameAdapter {
         // Score
         const scoreEl = document.getElementById('score');
         if (scoreEl) {
-            scoreEl.textContent = `SCORE: ${Math.floor(this._pacAdapter.score)}`;
+            scoreEl.textContent = `SCORE: ${Math.floor(eng.score)}`;
         }
 
         this._renderer.render(this._scene, this._camera);
@@ -508,7 +501,7 @@ function setup() {
     const cellCreatorFn   = (x, y, pel)        => new Cell(x, y, pel);
     const ghostCreatorFn  = (x, y, id)         => new Ghost(x, y, id);
 
-    const ge = new GameEngine(20, 20, pacmanCreatorFn, pelletCreatorFn, cellCreatorFn, ghostCreatorFn);
+    const ge = new GameEngine(20, 20, pacmanCreatorFn, pelletCreatorFn, cellCreatorFn, ghostCreatorFn, sfxEventListener);
     window.threeGameAdapter = new ThreeGameAdapter(ge, canvas, 'overhead');
     window.controls         = new KeyboardControlAdapter(document);
 

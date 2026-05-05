@@ -1,8 +1,9 @@
 class GameEngine {
-    constructor(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator) {
+    constructor(rows, cols, pacmanCreator, pelletCreator, cellCreator, ghostCreator, eventListener) {
         this.rows = rows;
         this.cols = cols;
         this.pacman = pacmanCreator(rows / 2, cols / 2);
+        this._eventListener = eventListener || null;
         this.gameOver = false;
         this.gameWon = false;
         this._ghostTick = 0;
@@ -133,6 +134,13 @@ class GameEngine {
             const maxTimer = this.ghosts.reduce((m, g) => Math.max(m, (g.ghost || g).frightTimer || 0), 0);
             if (maxTimer > 0) this.events.frightenedRatio = maxTimer / 30;
         }
+
+        if (this._eventListener) this._eventListener(this.events);
+    }
+
+    get score() {
+        const pac = this.pacman.pacman || this.pacman;
+        return pac.score;
     }
 
     _updateGhostMode() {
