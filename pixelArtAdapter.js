@@ -436,10 +436,9 @@ const _sfx = (() => {
         return ctx;
     }
     function tone(freq, type, duration, volume, startDelay) {
-        try {
-            const ac  = _ctx();
-            ac.resume();
-            const osc = ac.createOscillator();
+        const ac = _ctx();
+        ac.resume().then(() => {
+            const osc  = ac.createOscillator();
             const gain = ac.createGain();
             osc.connect(gain);
             gain.connect(ac.destination);
@@ -450,7 +449,7 @@ const _sfx = (() => {
             gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
             osc.start(t);
             osc.stop(t + duration);
-        } catch (e) {}
+        });
     }
     return {
         pellet()  { tone(440, 'square',   0.06, 0.12); },
