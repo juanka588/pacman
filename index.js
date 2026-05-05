@@ -270,7 +270,7 @@ class P5GameAdapter {
         const scoreEl = document.getElementById('score');
         if (scoreEl) {
             const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${pac.score}`;
+            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
         }
         if (this.gameEngine.gameOver) {
             fill(255, 0, 0);

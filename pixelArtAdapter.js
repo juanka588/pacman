@@ -84,6 +84,31 @@ class PixelArtCellAdapter {
     }
 }
 
+// Redraws the floor + walls for a single cell — called after an entity leaves it
+function _redrawCell(ctx, gameMap, gx, gy, tile) {
+    const cellAdapter = gameMap[gx][gy];
+    const x = gx * tile;
+    const y = gy * tile;
+    ctx.fillStyle = '#000000';
+    ctx.fillRect(x, y, tile, tile);
+    ctx.strokeStyle = '#1a78ff';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    if (cellAdapter.hasLeftWall())   { ctx.moveTo(x,        y);      ctx.lineTo(x,        y + tile); }
+    if (cellAdapter.hasTopWall())    { ctx.moveTo(x,        y);      ctx.lineTo(x + tile, y);        }
+    if (cellAdapter.hasRightWall())  { ctx.moveTo(x + tile, y);      ctx.lineTo(x + tile, y + tile); }
+    if (cellAdapter.hasBottomWall()) { ctx.moveTo(x,        y+tile); ctx.lineTo(x + tile, y + tile); }
+    ctx.stroke();
+    // Redraw pellet if still present
+    if (cellAdapter._pelletAdapter && cellAdapter.hasPellet()) {
+        const cx = gx * tile + tile / 2;
+        const cy = gy * tile + tile / 2;
+        ctx.fillStyle = '#FFB897';
+        ctx.fillRect(Math.floor(cx) - 2, Math.floor(cy) - 2, 4, 4);
+    }
+}
+
 // ─── PixelArtPelletAdapter ────────────────────────────────────────────────────
 
 class PixelArtPelletAdapter {
@@ -143,12 +168,13 @@ class PixelArtPacmanAdapter {
         return this.pacman.canMove(direction, rows, cols);
     }
 
-    draw(ctx) {
+    draw(ctx, gameMap) {
         const t = this.tile;
 
-        // Clear previous position
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(this._prevX * t, this._prevY * t, t, t);
+        // Redraw the cell we just left (black floor + walls) so walls are not erased
+        if (this._prevX !== this.pacman.x || this._prevY !== this.pacman.y) {
+            _redrawCell(ctx, gameMap, this._prevX, this._prevY, t);
+        }
 
         // Toggle mouth animation each tick
         this._mouthOpen = !this._mouthOpen;
@@ -228,12 +254,13 @@ class PixelArtGhostAdapter {
         this._prevY = ghost.y;
     }
 
-    draw(ctx) {
+    draw(ctx, gameMap) {
         const t = this.tile;
 
-        // Clear previous position
-        ctx.fillStyle = '#000000';
-        ctx.fillRect(this._prevX * t, this._prevY * t, t, t);
+        // Redraw the cell we just left so its walls are not erased
+        if (this._prevX !== this.ghost.x || this._prevY !== this.ghost.y) {
+            _redrawCell(ctx, gameMap, this._prevX, this._prevY, t);
+        }
 
         const gx = this.ghost.x;
         const gy = this.ghost.y;
@@ -333,17 +360,17 @@ class PixelArtGameAdapter {
             }
         }
 
-        // Draw pac-man and ghosts
-        this.gameEngine.pacman.draw(ctx);
+        // Draw pac-man and ghosts (pass gameMap so they can redraw vacated cells)
+        this.gameEngine.pacman.draw(ctx, this.gameEngine.gameMap);
         for (const ghost of this.gameEngine.ghosts) {
-            ghost.draw(ctx);
+            ghost.draw(ctx, this.gameEngine.gameMap);
         }
 
         // Update score display
         const scoreEl = document.getElementById('score');
         if (scoreEl) {
             const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${pac.score}`;
+            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
         }
 
         // Game over overlay

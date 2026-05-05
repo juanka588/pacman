@@ -254,7 +254,7 @@ class SVGGameAdapter {
         const scoreEl = document.getElementById('score');
         if (scoreEl) {
             const pac = this.gameEngine.pacman.pacman || this.gameEngine.pacman;
-            scoreEl.textContent = `SCORE: ${pac.score}`;
+            scoreEl.textContent = `SCORE: ${Math.floor(pac.score)}`;
         }
         if (this.gameEngine.gameOver && !this._gameOverShown) {
             this._gameOverShown = true;
