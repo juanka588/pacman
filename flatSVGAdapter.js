@@ -1,59 +1,34 @@
 let rows;
 let cols;
-let directions = [
-    {x: 0, y: 0}, // 0 none
-    {x: 1, y: 0}, // 1 right
-    {x: 0, y: 1}, // 2 down
-    {x: 0, y: -1},// 3 up
-    {x: -1, y: 0} // 4 left
-];
-let currentDirection = 0;
 let size = 20;
 
 let gameEngine;
+let controls;
 
 let svgElement;
 let width = 400;
 let height = 400;
 const PI = Math.PI;
-const frameRate = 100;
+const FRAME_RATE = 100;
 
 function setup() {
     svgElement = document.querySelector("#game-screen");
     svgElement.setAttribute("width", width);
     svgElement.setAttribute("height", height);
-    svgElement.addEventListener("keydown", keyPressed);
     rows = width / size;
     cols = width / size;
     gameEngine = new SVGGameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
     window.gameEngine = gameEngine;
-    setTimeout(() => {
-        draw();
-    }, frameRate);
+    // SVG element needs focus to receive keyboard events; attach controls to it
+    controls = new KeyboardControlAdapter(svgElement);
+    window.controls = controls;
+    svgElement.focus();
+    setTimeout(() => { draw(); }, FRAME_RATE);
 }
 
 function draw() {
-    let direction = directions[currentDirection];
-    gameEngine.gameLoop(direction);
-    setTimeout(() => {
-        draw();
-    }, frameRate);
-}
-
-function keyPressed(evt) {
-    const keyCode = evt.key;
-    if (keyCode === "ArrowRight") {
-        currentDirection = 1;
-    }
-    if (keyCode === "ArrowDown") {
-        currentDirection = 2;
-    }
-    if (keyCode === "ArrowUp") {
-        currentDirection = 3;
-    }
-    if (keyCode === "ArrowLeft") {
-        currentDirection = 4;
-    }
+    gameEngine.gameLoop(controls.getDirection());
+    setTimeout(() => { draw(); }, FRAME_RATE);
 }
 
 class PacmanAdapter {

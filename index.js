@@ -1,16 +1,9 @@
 let rows;
 let cols;
-let directions = [
-    {x: 0, y: 0}, // 0 none
-    {x: 1, y: 0}, // 1 right
-    {x: 0, y: 1}, // 2 down
-    {x: 0, y: -1},// 3 up
-    {x: -1, y: 0} // 4 left
-];
-let currentDirection = 0;
 let size = 20;
 
 let gameEngine;
+let controls;
 
 function setup() {
     createCanvas(400, 400);
@@ -19,24 +12,13 @@ function setup() {
     cols = width / size;
     gameEngine = new P5GameAdapter(new GameEngine(rows, cols, pacmanCreator, pelletCreator, cellCreator));
     window.gameEngine = gameEngine;
+    controls = new KeyboardControlAdapter(document);
+    window.controls = controls;
 }
 
 function draw() {
     background(220);
-    let direction = directions[currentDirection];
-    gameEngine.gameLoop(direction);
-}
-
-function keyPressed() {
-    if (keyCode === LEFT_ARROW) {
-        currentDirection = 4;
-    } else if (keyCode === RIGHT_ARROW) {
-        currentDirection = 1;
-    } else if (keyCode === UP_ARROW) {
-        currentDirection = 3;
-    } else if (keyCode === DOWN_ARROW) {
-        currentDirection = 2;
-    }
+    gameEngine.gameLoop(controls.getDirection());
 }
 
 class PacmanAdapter {

@@ -8,3 +8,6 @@ function load(file) {
 // Load in the same order as the HTML script tags
 load('pacman.js');
 load('GameEngine.js');
+load('controls/KeyboardControlAdapter.js');
+load('controls/SwipeControlAdapter.js');
+load('controls/GamepadControlAdapter.js');
