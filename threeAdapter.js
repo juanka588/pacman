@@ -372,7 +372,13 @@ class ThreeGameAdapter {
             this._camera.position.set(this._gridCX, span * 1.1, this._gridCZ + 0.01);
             this._camera.lookAt(this._gridCX, 0, this._gridCZ);
         }
-        // 'tpp' is updated every frame — no initial set needed
+        if (mode === 'tpp') {
+            // Snap camera to its fixed offset above grid centre on first switch
+            // so it doesn't lerp in slowly from the overhead position.
+            const pos = this._pacAdapter.worldPos();
+            this._camera.position.set(pos.x - 14, 18, pos.z + 14);
+            this._camera.lookAt(pos.x, 0, pos.z);
+        }
     }
 
     gameLoop(direction) {
@@ -385,25 +391,24 @@ class ThreeGameAdapter {
         const pos = this._pacAdapter.worldPos();
         this._pacLight.position.set(pos.x, 3, pos.z);
 
-        // Third-person camera: behind + above Pac-Man
+        // Third-person follow camera: fixed world-space offset, always looking
+        // at Pac-Man. The angle never changes when Pac-Man turns — camera just
+        // slides to keep him centred (same as Diablo / isometric action games).
         if (this._cameraMode === 'tpp') {
-            const CAM_BACK = 16;  // units behind Pac-Man
-            const CAM_UP   = 10;  // units above
-            const LOOK_FWD = 6;   // units ahead of Pac-Man to look at
+            const OFFSET_X = -14; // fixed world offset from Pac-Man (south-west)
+            const OFFSET_Y =  18; // height
+            const OFFSET_Z =  14;
+            const LERP      = 0.18; // smoothing — lower = more lag, higher = snappier
 
-            // Smoothly interpolate toward the ideal position so the camera
-            // doesn't snap when Pac-Man turns
-            const idealCamX = pos.x - pos.dx * CAM_BACK;
-            const idealCamZ = pos.z - pos.dz * CAM_BACK;
-            this._camera.position.x += (idealCamX - this._camera.position.x) * 0.25;
-            this._camera.position.y += (CAM_UP     - this._camera.position.y) * 0.25;
-            this._camera.position.z += (idealCamZ  - this._camera.position.z) * 0.25;
+            const targetX = pos.x + OFFSET_X;
+            const targetY = OFFSET_Y;
+            const targetZ = pos.z + OFFSET_Z;
 
-            this._camera.lookAt(
-                pos.x + pos.dx * LOOK_FWD,
-                0.5,
-                pos.z + pos.dz * LOOK_FWD
-            );
+            this._camera.position.x += (targetX - this._camera.position.x) * LERP;
+            this._camera.position.y += (targetY - this._camera.position.y) * LERP;
+            this._camera.position.z += (targetZ - this._camera.position.z) * LERP;
+
+            this._camera.lookAt(pos.x, 0, pos.z);
         }
 
         // Score
