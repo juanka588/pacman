@@ -146,6 +146,69 @@ describe('Scenario: ghost kills Pac-Man', () => {
     });
 });
 
+// ─── Win condition edge cases ────────────────────────────────────────────────
+
+describe('Scenario: win condition edge cases', () => {
+    test('gameWon stays false when _totalPellets is 0 (no pellets ever existed)', () => {
+        const eng = makeFixedEngine();
+        // _totalPellets already 0, no pellets placed
+        eng.gameLoop({ x: 0, y: 0 });
+        expect(eng.gameWon).toBe(false);
+    });
+
+    test('gameLoop is a no-op after gameWon — pacman does not move', () => {
+        const eng = makeFixedEngine();
+        const px = eng.pacman.x;
+        const py = eng.pacman.y;
+        eng.gameMap[px + 1][py].pellet = new Pellet(px + 1, py, 10);
+        eng._totalPellets = 1;
+        eng.gameLoop({ x: 1, y: 0 }); // eats last pellet → gameWon
+        expect(eng.gameWon).toBe(true);
+        const xAfterWin = eng.pacman.x;
+        eng.gameLoop({ x: 1, y: 0 }); // should be no-op
+        expect(eng.pacman.x).toBe(xAfterWin);
+    });
+});
+
+// ─── Ghost eaten state lifecycle ─────────────────────────────────────────────
+
+describe('Scenario: ghost eaten state lifecycle', () => {
+    test('eaten ghost does not move during respawn countdown', () => {
+        const eng = makeFixedEngine();
+        eng.ghosts[0].frighten(50);
+        eng.ghosts[0].x = eng.pacman.x;
+        eng.ghosts[0].y = eng.pacman.y;
+        eng.gameLoop({ x: 0, y: 0 }); // eat ghost
+        const posAfterEat = { x: eng.ghosts[0].x, y: eng.ghosts[0].y };
+        eng.gameLoop({ x: 0, y: 0 }); // one more tick while eaten
+        // Position should not change while eaten (it stays at spawn coords set by eat())
+        expect(eng.ghosts[0].eaten).toBe(true);
+        expect(eng.ghosts[0].x).toBe(posAfterEat.x);
+        expect(eng.ghosts[0].y).toBe(posAfterEat.y);
+    });
+
+    test('ghost mode and eaten flag both set correctly when eaten', () => {
+        const eng = makeFixedEngine();
+        eng.ghosts[0].frighten(50);
+        eng.ghosts[0].x = eng.pacman.x;
+        eng.ghosts[0].y = eng.pacman.y;
+        eng.gameLoop({ x: 0, y: 0 });
+        expect(eng.ghosts[0].eaten).toBe(true);
+        expect(eng.ghosts[0].mode).toBe('eaten');
+    });
+
+    test('ghost returns to scatter mode after respawn', () => {
+        const eng = makeFixedEngine();
+        eng.ghosts[0].frighten(1);
+        eng.ghosts[0].x = eng.pacman.x;
+        eng.ghosts[0].y = eng.pacman.y;
+        eng.gameLoop({ x: 0, y: 0 });
+        for (let i = 0; i < eng._respawnTicks; i++) eng.gameLoop({ x: 0, y: 0 });
+        expect(eng.ghosts[0].eaten).toBe(false);
+        expect(eng.ghosts[0].mode).toBe('scatter');
+    });
+});
+
 // ─── Super pellet: Pac-Man eats ghost ────────────────────────────────────────
 
 describe('Scenario: super pellet and ghost eaten', () => {

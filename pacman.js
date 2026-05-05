@@ -31,8 +31,8 @@ class Pacman {
         let newX = this.x + direction.x;
         let newY = this.y + direction.y;
         if (
-            newX < 0 || newX >= cols ||
-            newY < 0 || newY >= rows
+            newX < 0 || newX >= rows ||
+            newY < 0 || newY >= cols
         ) {
             return false;
         }
@@ -415,5 +415,5 @@ class Ghost {
 
 // Allow Node/Jest to require this file without breaking browser script-tag loading
 if (typeof module !== 'undefined') {
-    module.exports = { Pacman, Pellet, Cell, MazeGenerator, Ghost, randomInRange };
+    module.exports = { Pacman, Pellet, SuperPellet, Cell, MazeGenerator, Ghost, randomInRange };
 }

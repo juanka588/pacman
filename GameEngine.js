@@ -6,6 +6,7 @@ class GameEngine {
         this.gameOver = false;
         this.gameWon = false;
         this._ghostTick = 0;
+        this.events = { pelletEaten: false, superPelletEaten: false, ghostEaten: false, died: false, frightenedRatio: 0 };
         this._respawnTicks = 30; // ticks before an eaten ghost respawns
 
         let pelletProb = 0.2;

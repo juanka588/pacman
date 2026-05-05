@@ -63,6 +63,18 @@ describe('Pacman.canMove', () => {
         expect(p.canMove(UP, rows, cols)).toBe(true);
         expect(p.canMove(DOWN, rows, cols)).toBe(true);
     });
+
+    test('non-square grid: x is bounded by rows, y by cols', () => {
+        // 4 rows, 8 cols — x (column) must be < rows, y must be < cols
+        const rows = 4, cols = 8;
+        // x at last row boundary
+        expect(new Pacman(rows - 1, 3).canMove(RIGHT, rows, cols)).toBe(false);
+        // y at last col boundary
+        expect(new Pacman(2, cols - 1).canMove(DOWN, rows, cols)).toBe(false);
+        // interior — both directions valid
+        expect(new Pacman(2, 4).canMove(RIGHT, rows, cols)).toBe(true);
+        expect(new Pacman(2, 4).canMove(DOWN, rows, cols)).toBe(true);
+    });
 });
 
 describe('Pacman.move', () => {
@@ -108,6 +120,38 @@ describe('Pacman.move', () => {
         p.move(RIGHT, grid);
         // Score should be 0 because pellet was on the cell we left, not the one we moved to
         expect(p.score).toBe(0);
+    });
+
+    test('updates direction after a successful move', () => {
+        const grid = makeGrid(5, 5);
+        const p = new Pacman(2, 2);
+        p.move(DOWN, grid);
+        expect(p.direction).toEqual(DOWN);
+    });
+
+    test('direction does not change when movement is blocked by a wall', () => {
+        const grid = makeGrid(5, 5);
+        grid[2][2].createRightWall();
+        const p = new Pacman(2, 2);
+        p.direction = DOWN;
+        p.move(RIGHT, grid);
+        expect(p.direction).toEqual(DOWN); // unchanged
+    });
+
+    test('sets ateSuper when landing on a super pellet', () => {
+        const grid = makeGrid(5, 5);
+        grid[3][2] = new Cell(3, 2, new SuperPellet(3, 2));
+        const p = new Pacman(2, 2);
+        p.move(RIGHT, grid);
+        expect(p.ateSuper).toBe(true);
+    });
+
+    test('does not set ateSuper when landing on a regular pellet', () => {
+        const grid = makeGrid(5, 5);
+        grid[3][2] = makeCell(3, 2, 5);
+        const p = new Pacman(2, 2);
+        p.move(RIGHT, grid);
+        expect(p.ateSuper).toBe(false);
     });
 });
 
