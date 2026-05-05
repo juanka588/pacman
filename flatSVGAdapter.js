@@ -72,40 +72,38 @@ class PacmanAdapter {
 
     _create() {
         const group = createGroup('pacman-container');
-        const r = this.size * 0.45;
+        const r = this.size * 0.44;
 
         const body = document.createElementNS(svgNS, 'path');
-        body.setAttributeNS(null, 'class', 'pacman-body');
         body.setAttributeNS(null, 'fill', '#FFD700');
 
-        const eye = createCircle(r * 0.3, -r * 0.5, r * 0.15, 'pacman-eye');
+        const eye = createCircle(r * 0.25, -r * 0.45, r * 0.15, 'pacman-eye');
 
         group.appendChild(body);
         group.appendChild(eye);
 
         this._r = r;
         this._bodyEl = body;
-        this._mouthAngle = 0.25; // radians, open angle (each side)
-        this._animDir = 1;
+        this._mouthAngle = 0.4;  // start open
+        this._animDir = -1;       // closing first
 
         svgElement.appendChild(group);
         this.geometryRef = group;
     }
 
     _updateMouth() {
-        // Animate mouth open/close
-        this._mouthAngle += 0.04 * this._animDir;
-        if (this._mouthAngle > 0.35) this._animDir = -1;
-        if (this._mouthAngle < 0.02) this._animDir = 1;
+        this._mouthAngle += 0.12 * this._animDir;
+        if (this._mouthAngle > 0.55) this._animDir = -1;
+        if (this._mouthAngle < 0.05) this._animDir = 1;
 
         const r = this._r;
-        const a = this._mouthAngle;
-        const startX = Math.cos(a) * r;
-        const startY = Math.sin(a) * r;
-        const endX = Math.cos(-a) * r;
-        const endY = Math.sin(-a) * r;
-        // Pie slice from center, arc going the long way around
-        const d = `M 0 0 L ${startX} ${startY} A ${r} ${r} 0 1 0 ${endX} ${endY} Z`;
+        const a = Math.max(0.05, this._mouthAngle);
+        // Bottom jaw edge, arc counterclockwise (large) to top jaw edge, close to center
+        const x1 = +(Math.cos(a) * r).toFixed(3);
+        const y1 = +(Math.sin(a) * r).toFixed(3);
+        const x2 = +(Math.cos(-a) * r).toFixed(3);
+        const y2 = +(Math.sin(-a) * r).toFixed(3);
+        const d = `M 0 0 L ${x1} ${y1} A ${r} ${r} 0 1 0 ${x2} ${y2} Z`;
         this._bodyEl.setAttributeNS(null, 'd', d);
     }
 
